@@ -2,7 +2,7 @@ pub mod eunoia;
 
 use crate::ast::*;
 
-trait Translator {
+pub trait Translator {
     type Output;
 
     fn translate(&mut self, proof: &Rc<ProofNode>) -> Self::Output;

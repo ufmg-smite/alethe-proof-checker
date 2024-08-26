@@ -80,6 +80,9 @@ enum Command {
 
     /// Generates the equivalent SMT instance for every `lia_generic` step in a proof.
     GenerateLiaProblems(ParseCommandOptions),
+
+    /// Translates an Alethe proof into Eunoia.
+    Translate(TranslateCommandOptions),
 }
 
 #[derive(Args)]
@@ -403,6 +406,15 @@ struct SliceCommandOptions {
     hole_solver_args: Option<String>,
 }
 
+#[derive(Args)]
+struct TranslateCommandOptions {
+    #[clap(flatten)]
+    input: Input,
+
+    #[clap(flatten)]
+    parsing: ParsingOptions,
+}
+
 #[derive(ArgEnum, Clone)]
 enum LogLevel {
     Off,
@@ -478,6 +490,7 @@ fn main() {
         Command::GenerateLiaProblems(options) => {
             generate_lia_problems_command(options, !cli.no_print_with_sharing)
         }
+        Command::Translate(options) => translate_command(options),
     };
     if let Err(e) = result {
         log::error!("{}", e);
@@ -631,6 +644,22 @@ fn generate_lia_problems_command(options: ParseCommandOptions, use_sharing: bool
         let mut f = File::create(file_name)?;
         write!(f, "{}", content)?;
     }
+
+    Ok(())
+}
+
+fn translate_command(options: TranslateCommandOptions) -> CliResult<()> {
+    use carcara::translation::Translator;
+
+    let (problem, proof) = get_instance(&options.input)?;
+    let (_, proof, _) = parser::parse_instance(problem, proof, options.parsing.into())
+        .map_err(carcara::Error::from)?;
+
+    let node = ast::ProofNode::from_commands(proof.commands);
+
+    let mut translator = carcara::translation::eunoia::EunoiaTranslator {};
+    let _ = translator.translate(&node);
+    // TODO: implement Eunoia printer
 
     Ok(())
 }
