@@ -41,6 +41,7 @@ pub mod checker;
 pub mod elaborator;
 pub mod parser;
 mod resolution;
+pub mod translation;
 mod utils;
 
 use crate::benchmarking::{CollectResults, OnlineBenchmarkResults, RunMeasurement};
