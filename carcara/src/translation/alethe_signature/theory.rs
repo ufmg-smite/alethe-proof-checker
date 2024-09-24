@@ -1,4 +1,4 @@
-/// Definition of Alethe in Eunoia, following https://github.com/cvc5/aletheinalf/.
+/// Definition of Alethe in Eunoia, following [AletheInAlf](https://github.com/cvc5/aletheinalf/).
 use std::string::String;
 
 // TODO: import everything once
@@ -19,9 +19,9 @@ pub struct AletheTheory {
     
 }
 
-impl AletheTheory{
+impl AletheTheory {
     pub fn new() -> Self {
-        return AletheTheory{
+        AletheTheory{
             cl : EunoiaCommand::DeclareConst {
                 name        : String::from("@cl"),
                 eunoia_type : EunoiaTerm::Type(
@@ -57,8 +57,12 @@ impl AletheTheory{
                 panic!()
             }
         }
-    }
-    
-    
-    
+    }   
 }
+
+impl Default for AletheTheory {
+    fn default() -> Self {
+        AletheTheory::new()
+    }
+}
+

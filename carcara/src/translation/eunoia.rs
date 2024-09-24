@@ -1,4 +1,4 @@
-/// Translator trait for EunoiaProof
+/// Translator trait for `EunoiaProof`
 use rug::Integer; // TODO: why are we using rug?
 
 use super::Translator;
@@ -14,10 +14,10 @@ impl EunoiaTranslator {
     // NOTE: it is pub for testing purposes
     pub fn translate(&mut self, proof: &Rc<ProofNode>) -> EunoiaProof {
         let command_list = proof.into_commands();
-        return self.translate_commands(&command_list);
+        EunoiaTranslator::translate_commands(&command_list)
     }
         
-    fn translate_commands(&mut self, command_list: &Vec<ProofCommand>) -> EunoiaProof {
+    fn translate_commands(command_list: &[ProofCommand]) -> EunoiaProof {
         // TODO: see for a better way of including Alethe's signature
         // We are not including it into the Pool of terms
         let alethe_signature = AletheTheory::new();
@@ -67,7 +67,7 @@ impl EunoiaTranslator {
                                 EunoiaCommand::Assume{name: id.clone(), 
                                                       term: EunoiaTranslator::translate_term(term),
                                 }
-                            )
+                            );
                         },
                         
                         ProofCommand::Step(
@@ -75,7 +75,7 @@ impl EunoiaTranslator {
                         ) => {
                             let alethe_premises: Vec<Symbol> = 
                                 premises
-                                .into_iter()
+                                .iter()
                                 .map(|pair| 
                                      String::from(
                                          proof_iter
@@ -89,15 +89,14 @@ impl EunoiaTranslator {
                                 EunoiaTerm::List(
                                     alethe_signature.get_cl_symbol(),
                                     clause
-                                        .into_iter()
+                                        .iter()
                                         .map(|term| 
                                              EunoiaTranslator::translate_term(term)).collect());
                             // NOTE: not adding conclusion clause to this list
                             let eunoia_arguments: Vec<EunoiaTerm> = 
                                 args
-                                .into_iter()
-                                .map(|arg| 
-                                     EunoiaTranslator::translate_proof_arg(arg)).collect();
+                                .iter()
+                                .map(EunoiaTranslator::translate_proof_arg).collect();
                             
                             eunoia_proof.push(
                                 EunoiaCommand::Step{
@@ -106,7 +105,7 @@ impl EunoiaTranslator {
                                     rule: rule.clone(),
                                     premises: alethe_premises,
                                     arguments: eunoia_arguments
-                                })
+                                });
                         },
                         
                         // A subproof introduced by the 'anchor' command
@@ -123,7 +122,7 @@ impl EunoiaTranslator {
                             // TODO: this should be an EunoiaTerm::List
                             and_app.push(EunoiaTerm::Id(String::from("and")));
                             
-                            args.into_iter()
+                            args.iter()
                                 .for_each(|arg| {
                                     match arg {
                                         AnchorArg::Variable((name, sort)) => {
@@ -132,14 +131,14 @@ impl EunoiaTranslator {
                                                     name.clone(),
                                                     Box::new(
                                                         EunoiaTranslator
-                                                            ::translate_term(sort))))
+                                                            ::translate_term(sort))));
                                         },
                                         AnchorArg::Assign((name, _sort), term) => {                                              
                                             and_app.push(
                                                 EunoiaTerm::Op(
                                                     EunoiaOperator::Eq, 
                                                     vec![EunoiaTerm::Id(name.clone()), 
-                                                         EunoiaTranslator::translate_term(term)]))
+                                                         EunoiaTranslator::translate_term(term)]));
                                         }
                                     }
                                 });
@@ -166,7 +165,7 @@ impl EunoiaTranslator {
                             contexts_opened += 1;
 
                             // Continue with the remaining commands
-                            self.translate_commands(&commands);
+                            EunoiaTranslator::translate_commands(commands);
                         },
                     }
                 },
@@ -177,7 +176,7 @@ impl EunoiaTranslator {
             }
         };
         
-        return eunoia_proof;
+        eunoia_proof
     }
 
     fn translate_term(term: &Term) -> EunoiaTerm {
@@ -191,11 +190,11 @@ impl EunoiaTranslator {
             },
 
             Term::Op(operator, operands) => {
-                let operands_eunoia = operands.into_iter().map(
+                let operands_eunoia = operands.iter().map(
                     |operand| EunoiaTranslator::translate_term(operand))
                     .collect();
 
-                EunoiaTerm::Op(EunoiaTranslator::translate_operator(operator),
+                EunoiaTerm::Op(EunoiaTranslator::translate_operator(*operator),
                                operands_eunoia)
             },
             
@@ -218,7 +217,7 @@ impl EunoiaTranslator {
         }
     }
 
-    fn translate_operator(operator: &Operator) -> EunoiaOperator {
+    fn translate_operator(operator: Operator) -> EunoiaOperator {
         match operator {
             // Boolean operators.
             Operator::Xor => {
@@ -323,44 +322,42 @@ impl EunoiaTranslator {
     // TODO: don't know if this will be actually needed
     /// Translates only an SMT-lib problem prelude.
     pub fn translate_problem_prelude(prelude: &ProblemPrelude) -> EunoiaProof {
-        match prelude {
-            ProblemPrelude {sort_declarations,
+        let ProblemPrelude {sort_declarations,
                             function_declarations,
-                            logic} => {
+                            logic} = prelude;
+            
 
-                let mut eunoia_prelude = Vec::new();
+        let mut eunoia_prelude = Vec::new();
 
-                match logic {
-                    Some(logic_name) => {
-                        eunoia_prelude.push(EunoiaCommand::SetLogic{name: logic_name.clone()})
-                    },
+        match logic {
+            Some(logic_name) => {
+                eunoia_prelude.push(EunoiaCommand::SetLogic{name: logic_name.clone()});
+            },
 
-                    None => {
-                    }
-                }
-                
-                sort_declarations.into_iter()
-                    .for_each(|pair| {
-                         eunoia_prelude.push(
-                             EunoiaCommand::DeclareSort {
-                                 name: pair.0.clone(),
-                                 arity: EunoiaTerm::Numeral(Integer::from(pair.1))
-                             })
-                         });
-
-                function_declarations.into_iter()
-                    .for_each(|pair| 
-                              eunoia_prelude.push(
-                                  EunoiaCommand::DeclareConst {name: pair.0.clone(),
-                                                               eunoia_type: EunoiaTranslator::translate_term(&*pair.1),
-                                                               attrs: Vec::new()
-                                  }
-                              )
-                    );
-
-                eunoia_prelude
+            None => {
             }
         }
+        
+        sort_declarations.iter()
+            .for_each(|pair| {
+                eunoia_prelude.push(
+                    EunoiaCommand::DeclareSort {
+                        name: pair.0.clone(),
+                        arity: EunoiaTerm::Numeral(Integer::from(pair.1))
+                    });
+            });
+
+        function_declarations.iter()
+            .for_each(|pair| 
+                      eunoia_prelude.push(
+                          EunoiaCommand::DeclareConst {name: pair.0.clone(),
+                                                       eunoia_type: EunoiaTranslator::translate_term(&pair.1),
+                                                       attrs: Vec::new()
+                          }
+                      )
+            );
+
+        eunoia_prelude
     }
 }
 
@@ -368,6 +365,6 @@ impl Translator for EunoiaTranslator {
     type Output = EunoiaProof;
 
     fn translate(&mut self, _proof: &Rc<ProofNode>) -> Self::Output {
-        return self.translate(_proof);
+        self.translate(_proof)
     }
 }

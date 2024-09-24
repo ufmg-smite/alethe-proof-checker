@@ -649,8 +649,6 @@ fn generate_lia_problems_command(options: ParseCommandOptions, use_sharing: bool
 }
 
 fn translate_command(options: TranslateCommandOptions) -> CliResult<()> {
-    use carcara::translation::Translator;
-
     let (problem, proof) = get_instance(&options.input)?;
     let (_, proof, _) = parser::parse_instance(problem, proof, options.parsing.into())
         .map_err(carcara::Error::from)?;
