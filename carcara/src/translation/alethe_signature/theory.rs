@@ -14,7 +14,9 @@ use crate::translation::eunoia_ast::EunoiaTypeAttr::*;
 pub struct AletheTheory {
     // Built-in operators
     pub cl : EunoiaCommand,
-    pub ite : EunoiaCommand, 
+    pub ite : EunoiaCommand,
+    // Contexts
+    
 }
 
 impl AletheTheory{

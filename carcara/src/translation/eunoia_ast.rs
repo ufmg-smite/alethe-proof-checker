@@ -71,12 +71,14 @@ pub enum EunoiaType {
     Real,
 
     // An already declared Sort.
+    // TODO: what about args?
     Name(Symbol),
     
     // A (possible polymorphic) function type
     Fun(Vec<EunoiaKindParam>, Vec<EunoiaType>, Box<EunoiaType>),
 }
 
+// TODO: using it also for EunoiaTypedParam
 /// Annotated attributes in declarations of constants.
 #[derive(Debug, PartialEq)]
 pub enum EunoiaConsAttr {
@@ -100,9 +102,9 @@ pub enum EunoiaConsAttr {
 /// A parameter name and type.
 #[derive(Debug, PartialEq)]
 pub struct EunoiaTypedParam {
-    pub name       : Symbol,
-    pub eunoia_type: EunoiaType,
-    pub attrs      : Vec<EunoiaConsAttr>,
+    pub name: Symbol,
+    pub eunoia_type: EunoiaTerm,
+    pub attrs: Vec<EunoiaConsAttr>,
 }
 
 /// Attributes allowed within a 'define' statement.
@@ -174,7 +176,7 @@ pub enum EunoiaTerm {
     // An arbitrary identifier.
     Id(Symbol),
     
-    // TODO:?
+    // TODO: different with Id(Symbol)?
     // TODO: not using ID tag for Symbol...
     // A variable, consisting of an identifier and a sort.
     Var(Symbol, Box<EunoiaTerm>),
@@ -185,8 +187,7 @@ pub enum EunoiaTerm {
     // an arbitrary list of terms, beginning with a symbol.
     // This gives a context-dependent semantics for such phrases,
     // maybe going against the idea of a "compositional semantics".
-    // Application of an operator over some parameters.
-    // NOTE: Eunoia's grammar is, actually, (<symbol> <term>+)
+    // NOTE: Eunoia's grammar is, actually, (<symbol> <term>+) (note the '+')
     List(Symbol, Vec<EunoiaTerm>),
 
     // Application of a built-in operator
@@ -239,26 +240,26 @@ pub enum EunoiaCommand {
     // can be seen as syntax sugar for:
     // (declare-const s (Proof f))
     // how to deal with these syntax sugars?
-    Assume {name : Symbol, term: EunoiaTerm},
+    Assume {name: Symbol, term: EunoiaTerm},
     
     // To introduce assumptions in local context, that will be consumed by
     // step-pop.
-    AssumePush {name : Symbol, term : EunoiaTerm},
+    AssumePush {name: Symbol, term: EunoiaTerm},
 
     // Eunoia definitions.
-    Define {name : Symbol,
+    Define {name: Symbol,
             typed_params: Vec<EunoiaTypedParam>,
-            term : EunoiaTerm,
-            attrs : Vec<EunoiaDefineAttr>
+            term: EunoiaTerm,
+            attrs: Vec<EunoiaDefineAttr>
     },
 
     // (program <symbol> <keyword> <sexpr>*) |
     // (program <symbol> (<typed-param>*) (<type>*) <type> ((<term> <term>)+)) |
-    Program {name : Symbol,
+    Program {name: Symbol,
              typed_params: Vec<EunoiaTypedParam>,
              params: Vec<EunoiaType>,
              ret: Vec<EunoiaType>,
-             body : Vec<(EunoiaTerm, EunoiaTerm)>
+             body: Vec<(EunoiaTerm, EunoiaTerm)>
     },
 
     // TODO: why does Alethes AST for premises
@@ -269,22 +270,22 @@ pub enum EunoiaCommand {
     // (define s () (r p1 ... pn t1 ... tm) :type (Proof f))
     /// Proof step:
     /// (step <symbol> <term>? :rule <symbol> <premises>? <arguments>?)
-    Step {name : Symbol,
+    Step {name: Symbol,
           // NOTE: this must be an application of Alethe's cl operator over
           // a possible empty list of terms
-          conclusion_clause : EunoiaTerm,
-          rule : Symbol,
-          premises : Vec<Symbol>,
-          arguments : Vec<EunoiaTerm>
+          conclusion_clause: EunoiaTerm,
+          rule: Symbol,
+          premises: Vec<Symbol>,
+          arguments: Vec<EunoiaTerm>
     },
 
     /// Step that might consume a local assumption, previously introduced by
     /// 'assume-push'.
-    StepPop {name : Symbol,
-             term : EunoiaTerm,
-             rule : Symbol,
-             premises : Vec<EunoiaTerm>,
-             arguments : Vec<EunoiaTerm>
+    StepPop {name: Symbol,
+             term: EunoiaTerm,
+             rule: Symbol,
+             premises: Vec<EunoiaTerm>,
+             arguments: Vec<EunoiaTerm>
     },
 
     // Common commands
@@ -298,9 +299,20 @@ pub enum EunoiaCommand {
     // shorthand for (declare-const <symbol> Type) if <type>* is empty, and for 
     // (declare-const <symbol> (-> <type>* Type)) otherwise.
     // SMT-LIB declare-const.
-    DeclareConst {name : Symbol,
+    DeclareConst {name: Symbol,
                   eunoia_type: EunoiaTerm,
-                  attrs : Vec<EunoiaConsAttr>
+                  attrs: Vec<EunoiaConsAttr>
+    },
+
+    // SMT-lib 2 commands
+    // (declare-sort name arity)
+    DeclareSort {name: Symbol,
+                 // TODO: only a numeral
+                 arity: EunoiaTerm
+    },
+
+    // (set-logic symbol)
+    SetLogic {name: Symbol
     }
 }
 
