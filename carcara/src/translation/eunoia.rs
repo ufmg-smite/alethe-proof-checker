@@ -292,7 +292,7 @@ impl EunoiaTranslator {
                 name: pair.0.clone(),
                 eunoia_type: EunoiaTranslator::translate_term(&pair.1),
                 attrs: Vec::new(),
-            })
+            });
         });
 
         eunoia_prelude
