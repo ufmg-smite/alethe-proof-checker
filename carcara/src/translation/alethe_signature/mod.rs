@@ -1,2 +1,2 @@
-pub mod theory;
 pub mod rules;
+pub mod theory;

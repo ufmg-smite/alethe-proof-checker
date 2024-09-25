@@ -1,9 +1,8 @@
+pub mod alethe_signature;
 pub mod eunoia;
 pub mod eunoia_ast;
-pub mod alethe_signature;
 #[cfg(test)]
 mod tests;
-
 
 use crate::ast::*;
 

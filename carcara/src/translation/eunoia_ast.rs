@@ -17,12 +17,12 @@ pub enum EunoiaTypeAttr {
     Implicit,
 
     // :requires (<term> <term>)
-    // TODO: Internally, (! T :requires (t s)) is syntax sugar for 
-    // (eo::requires t s T) where eo::requires is an operator that evalutes to 
-    // its third argument if and only if its first two arguments are equivalent 
-    // (details on this operator are given in computation). Furthermore, the 
-    // function type (-> (eo::requires t s T) S) is treated as 
-    // (-> T (eo::requires t s S)). The Ethos rewrites all types of the former to 
+    // TODO: Internally, (! T :requires (t s)) is syntax sugar for
+    // (eo::requires t s T) where eo::requires is an operator that evalutes to
+    // its third argument if and only if its first two arguments are equivalent
+    // (details on this operator are given in computation). Furthermore, the
+    // function type (-> (eo::requires t s T) S) is treated as
+    // (-> T (eo::requires t s S)). The Ethos rewrites all types of the former to
     // the latter.
     Requires(EunoiaTerm, EunoiaTerm),
 }
@@ -40,17 +40,17 @@ pub enum EunoiaKindParam {
     // reaches to the end of the outer construction.
 
     // TODO: cannot understand the following (from Ethos' user manual):
-    // Internally, (! T :var t) is syntax sugar for the type (Quote t) where t 
-    // is a parameter of type T and Quote is a distinguished type of kind 
-    // (-> (! Type :var U) U Type). When type checking applications of functions of 
-    // type (-> (Quote t) S), the parameter t is bound to the argument the function 
+    // Internally, (! T :var t) is syntax sugar for the type (Quote t) where t
+    // is a parameter of type T and Quote is a distinguished type of kind
+    // (-> (! Type :var U) U Type). When type checking applications of functions of
+    // type (-> (Quote t) S), the parameter t is bound to the argument the function
     // is applied to.
-    // Internally, (! T :implicit) drops T from the list of arguments of the function 
+    // Internally, (! T :implicit) drops T from the list of arguments of the function
     // type we are defining.
 
     // TODO: it looks that there are these KindParam, used to define variables that
-    // refer to types that inhabit Type (or "kinds"?); while there is also a 
-    // "typed-param" syntactic category that refers to the parameters of a function: 
+    // refer to types that inhabit Type (or "kinds"?); while there is also a
+    // "typed-param" syntactic category that refers to the parameters of a function:
     // values inhabiting some given type
     KindParam(EunoiaType, Vec<EunoiaTypeAttr>),
 }
@@ -73,7 +73,7 @@ pub enum EunoiaType {
     // An already declared Sort.
     // TODO: what about args?
     Name(Symbol),
-    
+
     // A (possible polymorphic) function type
     Fun(Vec<EunoiaKindParam>, Vec<EunoiaType>, Box<EunoiaType>),
 }
@@ -122,7 +122,7 @@ pub enum EunoiaDefineAttr {
 
 // // TODO: "Alethe in Eunoia" does not use 'declare-type', only 'declare-sort'.
 // pub struct EunoiaDeclareSort {
-    
+
 // }
 
 // TODO: see if we actually have this, rather than only "declare-const" and the
@@ -131,8 +131,6 @@ pub enum EunoiaDefineAttr {
 // TODO: using rug crate, as in Alethe ASTs
 #[derive(Debug, PartialEq)]
 pub enum EunoiaLitCategory {
-
-
     // TODO: include the following:
     // <binary> denoting the category of binary constants #b<0|1>+,
     // <hexadecimal> denoting the category of hexadecimal constants #x<hex-digit>+ where hexdigit is [0-9] | [a-f] | [A-F],
@@ -143,18 +141,18 @@ pub enum EunoiaLitCategory {
 pub enum EunoiaTerm {
     // TODO: it is not clear how to includes Types and Kinds
     Type(EunoiaType),
-    
+
     // Constant terms.
 
-    // Note: Numeral, rational and decimal values are implemented by the 
-    // arbitrary precision arithmetic library GMP. Binary and hexadecimal 
-    // values are implemented as layer on top of numeral values that 
-    // tracks a bit width. String values are implemented as a vector of 
-    // unsigned integers whose maximum value is specified by SMT-LIB 
-    // version 2.6, namely the character set corresponds to Unicode 
+    // Note: Numeral, rational and decimal values are implemented by the
+    // arbitrary precision arithmetic library GMP. Binary and hexadecimal
+    // values are implemented as layer on top of numeral values that
+    // tracks a bit width. String values are implemented as a vector of
+    // unsigned integers whose maximum value is specified by SMT-LIB
+    // version 2.6, namely the character set corresponds to Unicode
     // values 0 to 196607.
     // lit-category
-    // TODO: should we define this concept as a separate notion from 
+    // TODO: should we define this concept as a separate notion from
     // EunoiaTerm?
     // <numeral> denoting the category of numerals -?<digit>+
     Numeral(rug::Integer),
@@ -164,7 +162,7 @@ pub enum EunoiaTerm {
 
     // <rational> denoting the category of rationals -?<digit>+/<digit>+,
     Rational(rug::Integer, rug::Integer),
-    
+
     // <string> denoting the category of string literals "<char>*"
     String(String),
     // TODO: is it reasonable/required a specific syntactic category "constant"?
@@ -175,14 +173,14 @@ pub enum EunoiaTerm {
 
     // An arbitrary identifier.
     Id(Symbol),
-    
+
     // TODO: different with Id(Symbol)?
     // TODO: not using ID tag for Symbol...
     // A variable, consisting of an identifier and a sort.
     Var(Symbol, Box<EunoiaTerm>),
 
     // TODO: not using ID tag for Symbol...
-    // TODO: actually, Eunoia's grammar does not consider 
+    // TODO: actually, Eunoia's grammar does not consider
     // (<symbol> <term>+) to be an application, but rather
     // an arbitrary list of terms, beginning with a symbol.
     // This gives a context-dependent semantics for such phrases,
@@ -191,7 +189,7 @@ pub enum EunoiaTerm {
     List(Symbol, Vec<EunoiaTerm>),
 
     // Application of a built-in operator
-    Op(EunoiaOperator, Vec<EunoiaTerm>)
+    Op(EunoiaOperator, Vec<EunoiaTerm>),
 }
 
 /// Eunoia's built-in computational operators.
@@ -208,7 +206,7 @@ pub enum EunoiaOperator {
 
     // eo::gt TODO: non-core (still used in small.eo)?
     GreaterThan,
-    
+
     // eo::ge TODO: non-core (still used in small.eo)?
     GreaterEq,
 
@@ -240,26 +238,34 @@ pub enum EunoiaCommand {
     // can be seen as syntax sugar for:
     // (declare-const s (Proof f))
     // how to deal with these syntax sugars?
-    Assume {name: Symbol, term: EunoiaTerm},
-    
+    Assume {
+        name: Symbol,
+        term: EunoiaTerm,
+    },
+
     // To introduce assumptions in local context, that will be consumed by
     // step-pop.
-    AssumePush {name: Symbol, term: EunoiaTerm},
+    AssumePush {
+        name: Symbol,
+        term: EunoiaTerm,
+    },
 
     // Eunoia definitions.
-    Define {name: Symbol,
-            typed_params: Vec<EunoiaTypedParam>,
-            term: EunoiaTerm,
-            attrs: Vec<EunoiaDefineAttr>
+    Define {
+        name: Symbol,
+        typed_params: Vec<EunoiaTypedParam>,
+        term: EunoiaTerm,
+        attrs: Vec<EunoiaDefineAttr>,
     },
 
     // (program <symbol> <keyword> <sexpr>*) |
     // (program <symbol> (<typed-param>*) (<type>*) <type> ((<term> <term>)+)) |
-    Program {name: Symbol,
-             typed_params: Vec<EunoiaTypedParam>,
-             params: Vec<EunoiaType>,
-             ret: Vec<EunoiaType>,
-             body: Vec<(EunoiaTerm, EunoiaTerm)>
+    Program {
+        name: Symbol,
+        typed_params: Vec<EunoiaTypedParam>,
+        params: Vec<EunoiaType>,
+        ret: Vec<EunoiaType>,
+        body: Vec<(EunoiaTerm, EunoiaTerm)>,
     },
 
     // TODO: why does Alethes AST for premises
@@ -270,55 +276,59 @@ pub enum EunoiaCommand {
     // (define s () (r p1 ... pn t1 ... tm) :type (Proof f))
     /// Proof step:
     /// (step <symbol> <term>? :rule <symbol> <premises>? <arguments>?)
-    Step {name: Symbol,
-          // NOTE: this must be an application of Alethe's cl operator over
-          // a possible empty list of terms
-          conclusion_clause: EunoiaTerm,
-          rule: Symbol,
-          premises: Vec<Symbol>,
-          arguments: Vec<EunoiaTerm>
+    Step {
+        name: Symbol,
+        // NOTE: this must be an application of Alethe's cl operator over
+        // a possible empty list of terms
+        conclusion_clause: EunoiaTerm,
+        rule: Symbol,
+        premises: Vec<Symbol>,
+        arguments: Vec<EunoiaTerm>,
     },
 
     /// Step that might consume a local assumption, previously introduced by
     /// 'assume-push'.
-    StepPop {name: Symbol,
-             term: EunoiaTerm,
-             rule: Symbol,
-             premises: Vec<EunoiaTerm>,
-             arguments: Vec<EunoiaTerm>
+    StepPop {
+        name: Symbol,
+        term: EunoiaTerm,
+        rule: Symbol,
+        premises: Vec<EunoiaTerm>,
+        arguments: Vec<EunoiaTerm>,
     },
 
     // Common commands
 
     // TODO: for the moment, allowing an arbitrary EunoiaTerm as a type
     // TODO: how to handle declare-type:n
-    // (declare-type <symbol> (<type>*)) declares a new type constructor named 
-    // <symbol> whose kind is Type if <type>* is empty. If <type>* is 
-    // <type_1> ... <type_n>, then kind of <symbol> is 
-    // (-> <type_1> ... <type_n> Type). This is a derived command as it is a 
-    // shorthand for (declare-const <symbol> Type) if <type>* is empty, and for 
+    // (declare-type <symbol> (<type>*)) declares a new type constructor named
+    // <symbol> whose kind is Type if <type>* is empty. If <type>* is
+    // <type_1> ... <type_n>, then kind of <symbol> is
+    // (-> <type_1> ... <type_n> Type). This is a derived command as it is a
+    // shorthand for (declare-const <symbol> Type) if <type>* is empty, and for
     // (declare-const <symbol> (-> <type>* Type)) otherwise.
     // SMT-LIB declare-const.
-    DeclareConst {name: Symbol,
-                  eunoia_type: EunoiaTerm,
-                  attrs: Vec<EunoiaConsAttr>
+    DeclareConst {
+        name: Symbol,
+        eunoia_type: EunoiaTerm,
+        attrs: Vec<EunoiaConsAttr>,
     },
 
     // SMT-lib 2 commands
     // (declare-sort name arity)
-    DeclareSort {name: Symbol,
-                 // TODO: only a numeral
-                 arity: EunoiaTerm
+    DeclareSort {
+        name: Symbol,
+        // TODO: only a numeral
+        arity: EunoiaTerm,
     },
 
     // (set-logic symbol)
-    SetLogic {name: Symbol
-    }
+    SetLogic {
+        name: Symbol,
+    },
 }
 
 /// A collection of proof rules.
-pub struct EunoiaProofRules{
-}
+pub struct EunoiaProofRules {}
 
 pub struct EunoiaProgram;
 
