@@ -62,7 +62,12 @@ impl<'c> ParallelProofChecker<'c> {
         }
     }
 
-    pub fn check(&mut self, proof: &Proof, scheduler: &Scheduler) -> CarcaraResult<bool> {
+    pub fn check(
+        &mut self,
+        problem: &Problem,
+        proof: &Proof,
+        scheduler: &Scheduler,
+    ) -> CarcaraResult<bool> {
         // Used to estimulate threads to abort prematurely (only happens when a
         // thread already found out an invalid step)
         let premature_abort = Arc::new(AtomicBool::new(false));
@@ -84,6 +89,7 @@ impl<'c> ParallelProofChecker<'c> {
                         .stack_size(self.stack_size)
                         .spawn_scoped(s, move || -> CarcaraResult<(bool, bool)> {
                             local_self.worker_thread_check(
+                                problem,
                                 proof,
                                 schedule,
                                 local_pool,
@@ -130,6 +136,7 @@ impl<'c> ParallelProofChecker<'c> {
 
     pub fn check_with_stats<CR: CollectResults + Send + Default>(
         &mut self,
+        problem: &Problem,
         proof: &Proof,
         scheduler: &Scheduler,
         stats: &mut CheckerStatistics<CR>,
@@ -165,6 +172,7 @@ impl<'c> ParallelProofChecker<'c> {
                             move || -> CarcaraResult<(bool, bool, CheckerStatistics<CR>)> {
                                 local_self
                                     .worker_thread_check(
+                                        problem,
                                         proof,
                                         schedule,
                                         local_pool,
@@ -226,6 +234,7 @@ impl<'c> ParallelProofChecker<'c> {
 
     fn worker_thread_check<CR: CollectResults + Send + Default>(
         &mut self,
+        problem: &Problem,
         proof: &Proof,
         schedule: &Schedule,
         mut pool: LocalPool,
@@ -303,7 +312,7 @@ impl<'c> ParallelProofChecker<'c> {
                     }
                 }
                 ProofCommand::Assume { id, term } => {
-                    if !self.check_assume(id, term, &proof.premises, &iter, &mut stats) {
+                    if !self.check_assume(id, term, &problem.premises, &iter, &mut stats) {
                         // Signalize to other threads to stop the proof checking
                         should_abort.store(true, Ordering::Release);
                         return Err(Error::Checker {

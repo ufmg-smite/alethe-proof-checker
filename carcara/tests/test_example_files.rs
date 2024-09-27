@@ -12,7 +12,7 @@ fn run_parallel_checker_test(
     use checker::Config;
     use std::sync::Arc;
 
-    let (prelude, proof, pool) = parser::parse_instance(
+    let (problem, proof, pool) = parser::parse_instance(
         io::BufReader::new(fs::File::open(problem_path)?),
         io::BufReader::new(fs::File::open(proof_path)?),
         parser::Config::new(),
@@ -22,16 +22,16 @@ fn run_parallel_checker_test(
     let mut checker = checker::ParallelProofChecker::new(
         Arc::new(pool),
         Config::new(),
-        &prelude,
+        &problem.prelude,
         &schedule_context_usage,
         128 * 1024 * 1024,
     );
-    checker.check(&proof, &scheduler)?;
+    checker.check(&problem, &proof, &scheduler)?;
     Ok(())
 }
 
 fn run_test(problem_path: &Path, proof_path: &Path) -> CarcaraResult<()> {
-    let (prelude, proof, mut pool) = parser::parse_instance(
+    let (problem, proof, mut pool) = parser::parse_instance(
         io::BufReader::new(fs::File::open(problem_path)?),
         io::BufReader::new(fs::File::open(proof_path)?),
         parser::Config::new(),
@@ -44,7 +44,7 @@ fn run_test(problem_path: &Path, proof_path: &Path) -> CarcaraResult<()> {
     };
 
     // First, we check the proof normally
-    checker::ProofChecker::new(&mut pool, checker_config.clone()).check(&proof)?;
+    checker::ProofChecker::new(&mut pool, checker_config.clone()).check(&problem, &proof)?;
 
     // Then we elaborate it
     let config = elaborator::Config {
@@ -53,23 +53,20 @@ fn run_test(problem_path: &Path, proof_path: &Path) -> CarcaraResult<()> {
         uncrowd_rotation: true,
     };
     let node = ast::ProofNode::from_commands(proof.commands.clone());
-    let elaborated_node =
-        elaborator::Elaborator::new(&mut pool, &proof.premises, &prelude, config.clone())
-            .elaborate_with_default_pipeline(&node);
+    let elaborated_node = elaborator::Elaborator::new(&mut pool, &problem, config.clone())
+        .elaborate_with_default_pipeline(&node);
     let elaborated = ast::Proof {
-        premises: proof.premises.clone(),
         constant_definitions: proof.constant_definitions.clone(),
         commands: elaborated_node.into_commands(),
     };
 
     // After that, we check the elaborated proof to make sure it is valid
-    checker::ProofChecker::new(&mut pool, checker_config).check(&elaborated)?;
+    checker::ProofChecker::new(&mut pool, checker_config).check(&problem, &elaborated)?;
 
     // Finally, we elaborate the already elaborated proof, to make sure the elaboration step is
     // idempotent
-    let elaborated_twice =
-        elaborator::Elaborator::new(&mut pool, &proof.premises, &prelude, config)
-            .elaborate_with_default_pipeline(&elaborated_node);
+    let elaborated_twice = elaborator::Elaborator::new(&mut pool, &problem, config)
+        .elaborate_with_default_pipeline(&elaborated_node);
     assert!(
         elaborated.commands == elaborated_twice.into_commands(),
         "elaboration was not idempotent!"

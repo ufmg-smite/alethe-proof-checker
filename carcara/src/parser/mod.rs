@@ -62,7 +62,7 @@ pub fn parse_instance<T: BufRead>(
     problem: T,
     proof: T,
     config: Config,
-) -> CarcaraResult<(ProblemPrelude, Proof, PrimitivePool)> {
+) -> CarcaraResult<(Problem, Proof, PrimitivePool)> {
     let mut pool = PrimitivePool::new();
     parse_instance_with_pool(problem, proof, config, &mut pool)
         .map(|(prelude, proof)| (prelude, proof, pool))
@@ -73,13 +73,12 @@ pub fn parse_instance_with_pool<T: BufRead>(
     proof: T,
     config: Config,
     pool: &mut PrimitivePool,
-) -> CarcaraResult<(ProblemPrelude, Proof)> {
+) -> CarcaraResult<(Problem, Proof)> {
     let mut parser = Parser::new(pool, config, problem)?;
-    let (prelude, premises) = parser.parse_problem()?;
+    let problem = parser.parse_problem()?;
     parser.reset(proof)?;
-    let mut proof = parser.parse_proof()?;
-    proof.premises = premises;
-    Ok((prelude, proof))
+    let proof = parser.parse_proof()?;
+    Ok((problem, proof))
 }
 
 /// A function definition, from a `define-fun` command.
@@ -145,7 +144,7 @@ pub struct Parser<'a, R> {
     current_position: Position,
     state: ParserState,
     is_real_only_logic: bool,
-    problem: Option<(ProblemPrelude, IndexSet<Rc<Term>>)>,
+    problem: Option<Problem>,
 }
 
 impl<'a, R: BufRead> Parser<'a, R> {
@@ -193,14 +192,14 @@ impl<'a, R: BufRead> Parser<'a, R> {
         self.state.symbol_table.insert(HashCache::new(symbol), sort);
     }
 
-    /// Shortcut for `self.problem.as_mut().unwrap().0`
+    /// Shortcut for `self.problem.as_mut().unwrap().prelude`
     fn prelude(&mut self) -> &mut ProblemPrelude {
-        &mut self.problem.as_mut().unwrap().0
+        &mut self.problem.as_mut().unwrap().prelude
     }
 
-    /// Shortcut for `self.problem.as_mut().unwrap().1`
+    /// Shortcut for `self.problem.as_mut().unwrap().premises`
     fn premises(&mut self) -> &mut IndexSet<Rc<Term>> {
-        &mut self.problem.as_mut().unwrap().1
+        &mut self.problem.as_mut().unwrap().premises
     }
 
     /// Constructs and sort checks a variable term.
@@ -655,8 +654,8 @@ impl<'a, R: BufRead> Parser<'a, R> {
     ///
     /// All other commands are ignored. This method returns a hash set containing the premises
     /// introduced in `assert` commands.
-    pub fn parse_problem(&mut self) -> CarcaraResult<(ProblemPrelude, IndexSet<Rc<Term>>)> {
-        self.problem = Some((ProblemPrelude::default(), IndexSet::new()));
+    pub fn parse_problem(&mut self) -> CarcaraResult<Problem> {
+        self.problem = Some(Problem::new());
 
         while self.current_token != Token::Eof {
             self.expect_token(Token::OpenParen)?;
@@ -873,11 +872,7 @@ impl<'a, R: BufRead> Parser<'a, R> {
                 ))
             }
         };
-        Ok(Proof {
-            premises: IndexSet::new(), // TODO: this should not really be stored in the proof
-            constant_definitions,
-            commands,
-        })
+        Ok(Proof { constant_definitions, commands })
     }
 
     /// Parses an `assume` proof command. This method assumes that the `(` and `assume` tokens were

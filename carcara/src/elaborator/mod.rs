@@ -64,19 +64,13 @@ pub struct HoleOptions {
 
 pub struct Elaborator<'e> {
     pool: &'e mut PrimitivePool,
-    premises: &'e IndexSet<Rc<Term>>,
-    prelude: &'e ProblemPrelude,
+    problem: &'e Problem,
     config: Config,
 }
 
 impl<'e> Elaborator<'e> {
-    pub fn new(
-        pool: &'e mut PrimitivePool,
-        premises: &'e IndexSet<Rc<Term>>,
-        prelude: &'e ProblemPrelude,
-        config: Config,
-    ) -> Self {
-        Self { pool, premises, prelude, config }
+    pub fn new(pool: &'e mut PrimitivePool, problem: &'e Problem, config: Config) -> Self {
+        Self { pool, problem, config }
     }
 
     pub fn elaborate_with_default_pipeline(&mut self, root: &Rc<ProofNode>) -> Rc<ProofNode> {
@@ -148,7 +142,7 @@ impl<'e> Elaborator<'e> {
         mutate(root, |context, node| {
             match node.as_ref() {
                 ProofNode::Assume { id, depth, term }
-                    if context.is_empty() && !self.premises.contains(term) =>
+                    if context.is_empty() && !self.problem.premises.contains(term) =>
                 {
                     self.elaborate_assume(id, *depth, term)
                 }
@@ -186,7 +180,7 @@ impl<'e> Elaborator<'e> {
 
     fn elaborate_assume(&mut self, id: &str, depth: usize, term: &Rc<Term>) -> Rc<ProofNode> {
         let mut found = None;
-        for p in self.premises {
+        for p in &self.problem.premises {
             if Polyeq::new()
                 .mod_reordering(true)
                 .mod_nary(true)

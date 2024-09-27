@@ -1,15 +1,9 @@
 use super::{ProofIter, Rc, SortedVar, Term};
 use crate::CheckerError;
-use indexmap::IndexSet;
 
 /// A proof in the Alethe format.
 #[derive(Debug, Clone)]
 pub struct Proof {
-    /// The proof's premises.
-    ///
-    /// Those are the terms introduced in the original problem's `assert` commands.
-    pub premises: IndexSet<Rc<Term>>,
-
     /// The constants defined in the proof using `define-fun` with arity zero.
     ///
     /// This is only used to reconstruct these `define-fun`s when printing the proof.

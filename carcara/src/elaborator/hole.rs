@@ -59,14 +59,14 @@ fn get_problem_string(
 }
 
 pub fn hole(elaborator: &mut Elaborator, step: &StepNode) -> Option<Rc<ProofNode>> {
-    let prelude = if elaborator.prelude.logic.clone().unwrap() == "QF_LIA" {
+    let prelude = elaborator.problem.prelude.clone();
+    let prelude = if prelude.logic.as_deref() == Some("QF_LIA") {
         ProblemPrelude {
-            sort_declarations: elaborator.prelude.sort_declarations.clone(),
-            function_declarations: elaborator.prelude.function_declarations.clone(),
             logic: Some("QF_LIRA".into()),
+            ..prelude
         }
     } else {
-        elaborator.prelude.clone()
+        prelude
     };
     let problem = get_problem_string(elaborator.pool, &prelude, &step.clause);
     let options = elaborator.config.hole_options.as_ref().unwrap();
@@ -150,14 +150,11 @@ fn parse_and_check_solver_proof(
         allow_int_real_subtyping: true,
         strict: false,
     };
-    let mut parser = parser::Parser::new(pool, config, problem)?;
-    let (_, premises) = parser.parse_problem()?;
-    parser.reset(proof)?;
-    let mut proof = parser.parse_proof()?;
-    proof.premises = premises;
+
+    let (problem, proof) = parser::parse_instance_with_pool(problem, proof, config, pool)?;
 
     let config = checker::Config::new();
-    let res = checker::ProofChecker::new(pool, config).check(&proof)?;
+    let res = checker::ProofChecker::new(pool, config).check(&problem, &proof)?;
     Ok((proof.commands, res))
 }
 

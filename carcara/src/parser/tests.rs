@@ -478,7 +478,7 @@ fn test_define_fun() {
 fn test_define_fun_rec() {
     fn run_test(pool: &mut PrimitivePool, problem: &str, expected_premises: &[&str]) {
         let mut parser = Parser::new(pool, TEST_CONFIG, problem.as_bytes()).expect(ERROR_MESSAGE);
-        let got = parser.parse_problem().expect(ERROR_MESSAGE).1;
+        let got = parser.parse_problem().expect(ERROR_MESSAGE).premises;
         assert_eq!(expected_premises.len(), got.len());
         for p in expected_premises {
             parser.reset(p.as_bytes()).expect(ERROR_MESSAGE);

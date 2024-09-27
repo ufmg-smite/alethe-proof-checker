@@ -38,7 +38,7 @@ fn run_job<T: CollectResults + Default + Send>(
     let total = Instant::now();
 
     let parsing = Instant::now();
-    let (prelude, proof, mut pool) = parser::parse_instance(
+    let (problem, proof, mut pool) = parser::parse_instance(
         BufReader::new(File::open(job.problem_file)?),
         BufReader::new(File::open(job.proof_file)?),
         parser_config,
@@ -49,14 +49,14 @@ fn run_job<T: CollectResults + Default + Send>(
 
     let checking = Instant::now();
 
-    let checking_result = checker.check_with_stats(&proof, &mut checker_stats);
+    let checking_result = checker.check_with_stats(&problem, &proof, &mut checker_stats);
     let checking = checking.elapsed();
 
     let (elaboration, pipeline_durations) = if let Some((config, pipeline)) = elaborator_config {
         let elaboration = Instant::now();
         let node = ast::ProofNode::from_commands(proof.commands);
         let (elaborated, pipeline_durations) =
-            elaborator::Elaborator::new(&mut pool, &proof.premises, &prelude, config)
+            elaborator::Elaborator::new(&mut pool, &problem, config)
                 .elaborate_with_stats(&node, pipeline);
         elaborated.into_commands();
         (elaboration.elapsed(), pipeline_durations)

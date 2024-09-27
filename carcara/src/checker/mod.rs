@@ -95,8 +95,9 @@ impl<'c> ProofChecker<'c> {
         }
     }
 
-    pub fn check(&mut self, proof: &Proof) -> CarcaraResult<bool> {
+    pub fn check(&mut self, problem: &Problem, proof: &Proof) -> CarcaraResult<bool> {
         self.check_impl(
+            problem,
             proof,
             None::<&mut CheckerStatistics<OnlineBenchmarkResults>>,
         )
@@ -104,14 +105,16 @@ impl<'c> ProofChecker<'c> {
 
     pub fn check_with_stats<CR: CollectResults + Send + Default>(
         &mut self,
+        problem: &Problem,
         proof: &Proof,
         stats: &mut CheckerStatistics<CR>,
     ) -> CarcaraResult<bool> {
-        self.check_impl(proof, Some(stats))
+        self.check_impl(problem, proof, Some(stats))
     }
 
     fn check_impl<CR: CollectResults + Send + Default>(
         &mut self,
+        problem: &Problem,
         proof: &Proof,
         mut stats: Option<&mut CheckerStatistics<CR>>,
     ) -> CarcaraResult<bool> {
@@ -172,7 +175,7 @@ impl<'c> ProofChecker<'c> {
                     }
                 }
                 ProofCommand::Assume { id, term } => {
-                    if !self.check_assume(id, term, &proof.premises, &iter, &mut stats) {
+                    if !self.check_assume(id, term, &problem.premises, &iter, &mut stats) {
                         return Err(Error::Checker {
                             inner: CheckerError::Assume(term.clone()),
                             rule: "assume".into(),
