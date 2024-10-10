@@ -41,7 +41,7 @@ pub struct Substitution {
 
     /// The variables that should be renamed to preserve capture-avoidance, if they are bound by a
     /// binder term.
-    should_be_renamed: Option<IndexSet<Rc<Term>>>,
+    should_be_renamed: Option<IndexSet<String>>,
     cache: IndexMap<Rc<Term>, Rc<Term>>,
 }
 
@@ -113,9 +113,13 @@ impl Substitution {
 
         if let Some(should_be_renamed) = &mut self.should_be_renamed {
             if x != t {
-                should_be_renamed.extend(pool.free_vars(&t));
-                if x.is_var() {
-                    should_be_renamed.insert(x.clone());
+                let free_vars = pool
+                    .free_vars(&t)
+                    .into_iter()
+                    .map(|v| v.as_var().unwrap().to_owned());
+                should_be_renamed.extend(free_vars);
+                if let Some(var) = x.as_var() {
+                    should_be_renamed.insert(var.to_owned());
                 }
             }
         }
@@ -163,9 +167,13 @@ impl Substitution {
             if x == t {
                 continue; // We ignore reflexive substitutions
             }
-            should_be_renamed.extend(pool.free_vars(t).into_iter());
-            if x.is_var() {
-                should_be_renamed.insert(x.clone());
+            let free_vars = pool
+                .free_vars(t)
+                .into_iter()
+                .map(|v| v.as_var().unwrap().to_owned());
+            should_be_renamed.extend(free_vars);
+            if let Some(var) = x.as_var() {
+                should_be_renamed.insert(var.to_owned());
             }
         }
         self.should_be_renamed = Some(should_be_renamed);
@@ -243,11 +251,7 @@ impl Substitution {
         result
     }
 
-    fn can_skip_instead_of_renaming(
-        &self,
-        pool: &mut dyn TermPool,
-        binding_list: &[SortedVar],
-    ) -> bool {
+    fn can_skip_instead_of_renaming(&self, binding_list: &[SortedVar]) -> bool {
         // Note: this method assumes that `binding_list` is a "sort" binding list. "Value" lists add
         // some complications that are currently not supported. For example, the variable in the
         // domain of the substitution might be used in the value of a binding in the binding list,
@@ -259,10 +263,9 @@ impl Substitution {
         }
         let x = self.map.iter().next().unwrap().0.as_var().unwrap();
 
-        let mut should_be_renamed = binding_list.iter().filter(|&var| {
-            let t = pool.add(var.clone().into());
-            self.should_be_renamed.as_ref().unwrap().contains(&t)
-        });
+        let mut should_be_renamed = binding_list
+            .iter()
+            .filter(|&var| self.should_be_renamed.as_ref().unwrap().contains(&var.0));
 
         // In order for skipping to be possible, there should be only one variable in the binding
         // list that would be renamed, and that variable must be the variable in the domain of the
@@ -291,7 +294,7 @@ impl Substitution {
         // we can just skip the substitution entirely, which is way faster in some cases. In
         // particular, the skolemization rules require this optimization to have acceptable
         // performance.
-        if self.can_skip_instead_of_renaming(pool, binding_list) {
+        if self.can_skip_instead_of_renaming(binding_list) {
             return original_term.clone();
         }
 
@@ -337,11 +340,10 @@ impl Substitution {
 
                 // We keep adding `'`s to the variable name as long as it is necessary
                 loop {
-                    if !new_vars.contains(&new_var) {
-                        let new_term = pool.add((new_var.clone(), sort.clone()).into());
-                        if !self.should_be_renamed.as_ref().unwrap().contains(&new_term) {
-                            break;
-                        }
+                    if !new_vars.contains(&new_var)
+                        && !self.should_be_renamed.as_ref().unwrap().contains(&new_var)
+                    {
+                        break;
                     }
                     new_var.push('\'');
                     changed = true;
@@ -447,6 +449,10 @@ mod tests {
 
             // In theory, since x does not appear in this term, renaming y to y' is unnecessary
             "(forall ((y Int)) (> y 0))" [x -> y] => "(forall ((y' Int)) (> y' 0))",
+
+            // Name collision with variables with different types
+            "(forall ((y Bool)) (and y (> x 0)))" [x -> y] =>
+                "(forall ((y' Bool)) (and y' (> y 0)))",
 
             // TODO: Add tests for `choice`, `let`, and `lambda` terms
         }

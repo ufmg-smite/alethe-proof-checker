@@ -153,6 +153,14 @@ mod tests {
                 (step t1.t1 (cl (= x z)) :rule refl)
                 (step t1 (cl) :rule hole)": false,
             }
+            "Name collision with variables of different types" {
+                "(anchor :step t1 :args ((y Int) (:= (x Int) y)))
+                (step t1.t1 (cl (=
+                    (forall ((y Bool)) (and y (> x 0)))
+                    (forall ((z Bool)) (and z (> y 0)))
+                )) :rule refl)
+                (step t1 (cl) :rule hole)": true,
+            }
         }
     }
 }
