@@ -132,7 +132,7 @@ pub fn strict_resolution(
 
 fn apply_generic_resolution<'a, C: ClauseCollection<'a>>(
     premises: &'a [Premise],
-    args: &'a [ProofArg],
+    args: &'a [Rc<Term>],
     pool: &mut dyn TermPool,
 ) -> Result<C, CheckerError> {
     assert_num_premises(premises, 2..)?;
@@ -142,8 +142,8 @@ fn apply_generic_resolution<'a, C: ClauseCollection<'a>>(
     let args: Vec<_> = args
         .chunks(2)
         .map(|chunk| {
-            let pivot = chunk[0].as_term()?.remove_all_negations();
-            let polarity = chunk[1].as_term()?;
+            let pivot = chunk[0].remove_all_negations();
+            let polarity = chunk[1].clone();
             let polarity = if polarity.is_bool_true() {
                 true
             } else if polarity.is_bool_false() {

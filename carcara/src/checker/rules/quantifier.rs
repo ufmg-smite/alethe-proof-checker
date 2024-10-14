@@ -17,30 +17,17 @@ pub fn forall_inst(
 
     assert_num_args(args, bindings.len())?;
 
-    // Since the bindings and arguments may not be in the same order, we collect the bindings into
-    // a hash set, and remove each binding from it as we find the associated argument
-    let mut bindings: IndexSet<_> = bindings.iter().cloned().collect();
-    let substitution: IndexMap<_, _> = args
+    // iterate over the bindings and arguments simultaneously, building the substitution
+    let substitution: IndexMap<_, _> = bindings
         .iter()
-        .map(|arg| {
-            let (arg_name, arg_value) = arg.as_assign()?;
-            let arg_sort = pool.sort(arg_value);
-            rassert!(
-                bindings.remove(&(arg_name.clone(), arg_sort.clone())),
-                QuantifierError::NoBindingMatchesArg(arg_name.clone())
-            );
-
-            let ident_term = (arg_name.clone(), arg_sort).into();
-            Ok((pool.add(ident_term), arg_value.clone()))
+        .zip(args)
+        .map(|((var_name, sort), value)| {
+            assert_eq(sort, &pool.sort(value))?;
+            let var = pool.add(Term::new_var(var_name, sort.clone()));
+            Ok((var.clone(), value.clone()))
         })
         .collect::<Result<_, CheckerError>>()?;
     let mut substitution = Substitution::new(pool, substitution)?;
-
-    // All bindings were accounted for in the arguments
-    rassert!(
-        bindings.is_empty(),
-        QuantifierError::NoArgGivenForBinding(bindings.iter().next().unwrap().0.clone())
-    );
 
     // Equalities may be reordered, and the application of the substitution might rename bound
     // variables, so we need to compare for alpha-equivalence here
@@ -325,47 +312,47 @@ mod tests {
             ",
             "Simple working examples" {
                 "(step t1 (cl (or (not (forall ((p Bool)) p)) q))
-                    :rule forall_inst :args ((:= p q)))": true,
+                    :rule forall_inst :args (q))": true,
 
                 "(step t1 (cl (or (not (forall ((x Real) (y Real)) (= x y))) (= a b)))
-                    :rule forall_inst :args ((:= x a) (:= y b)))": true,
+                    :rule forall_inst :args (a b))": true,
 
                 "(step t1 (cl (or (not (forall ((x Real)) (= x a))) (= a a)))
-                    :rule forall_inst :args ((:= x a)))": true,
+                    :rule forall_inst :args (a))": true,
 
                 "(step t1 (cl (or (not (forall ((p Bool)) p)) (ite q (= a b) (and (= a 0.0) true))))
-                    :rule forall_inst :args ((:= p (ite q (= a b) (and (= a 0.0) true)))))": true,
+                    :rule forall_inst :args ((ite q (= a b) (and (= a 0.0) true))))": true,
             }
             "Equalities may be flipped" {
                 "(step t1 (cl (or (not (forall ((x Real) (y Real)) (and (= x y) (= 1 0))))
-                    (and (= b a) (= 1 0)))) :rule forall_inst :args ((:= x a) (:= y b)))": true,
+                    (and (= b a) (= 1 0)))) :rule forall_inst :args (a b))": true,
             }
             "Bound variables may be renamed by substitution" {
                 // The variable shadowing makes it so the substitution applied by Carcara renames p
                 "(step t1 (cl (or
                     (not (forall ((p Bool) (r Bool)) (and p (forall ((p Bool)) p))))
                     (and q (forall ((p Bool)) p))
-                )) :rule forall_inst :args ((:= p q) (:= r q)))": true,
+                )) :rule forall_inst :args (q q))": true,
             }
             "Argument is not in quantifier bindings" {
                 "(step t1 (cl (or (not (forall ((x Real)) (= x a))) (= b 0.0)))
-                    :rule forall_inst :args ((:= x b) (:= a 0.0)))": false,
+                    :rule forall_inst :args (b 0.0))": false,
             }
             "Binding has no associated substitution" {
                 "(step t1 (cl (or (not (forall ((x Real) (y Real)) (= x x))) (= a a)))
-                    :rule forall_inst :args ((:= x a)))": false,
+                    :rule forall_inst :args (a))": false,
             }
             "Substitution was not applied" {
                 "(step t1 (cl (or (not (forall ((x Real) (y Real)) (= x y))) (= x b)))
-                    :rule forall_inst :args ((:= x a) (:= y b)))": false,
+                    :rule forall_inst :args (a b))": false,
             }
             "Applied substitution was not passed as argument" {
                 "(step t1 (cl (or (not (forall ((x Real) (y Real)) (= x y))) (= a b)))
-                    :rule forall_inst :args ((:= x a)))": false,
+                    :rule forall_inst :args (a))": false,
             }
             "Wrong type of rule argument" {
                 "(step t1 (cl (or (not (forall ((x Real) (y Real)) (= x y))) (= a b)))
-                    :rule forall_inst :args ((:= x a) b))": false,
+                    :rule forall_inst :args ((= x a) b))": false,
             }
         }
     }

@@ -15,7 +15,7 @@ pub type Rule = fn(RuleArgs) -> RuleResult;
 pub struct RuleArgs<'a> {
     pub(super) conclusion: &'a [Rc<Term>],
     pub(super) premises: &'a [Premise<'a>],
-    pub(super) args: &'a [ProofArg],
+    pub(super) args: &'a [Rc<Term>],
     pub(super) pool: &'a mut dyn TermPool,
     pub(super) context: &'a mut ContextStack,
 
@@ -85,7 +85,7 @@ fn assert_clause_len<T: Into<Range>>(clause: &[Rc<Term>], range: T) -> RuleResul
     Ok(())
 }
 
-fn assert_num_args<T: Into<Range>>(args: &[ProofArg], range: T) -> RuleResult {
+fn assert_num_args<T: Into<Range>>(args: &[Rc<Term>], range: T) -> RuleResult {
     let range = range.into();
     if !range.contains(args.len()) {
         return Err(CheckerError::WrongNumberOfArgs(range, args.len()));

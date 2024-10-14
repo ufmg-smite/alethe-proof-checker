@@ -917,7 +917,7 @@ impl<'a, R: BufRead> Parser<'a, R> {
                 self.ignore_until_close_parens()?;
                 Vec::new()
             } else {
-                self.parse_sequence(Self::parse_proof_arg, true)?
+                self.parse_sequence(Self::parse_term, true)?
             }
         } else {
             Vec::new()
@@ -1206,33 +1206,6 @@ impl<'a, R: BufRead> Parser<'a, R> {
         self.expect_token(Token::OpenParen)?;
         self.expect_token(Token::ReservedWord(Reserved::Cl))?;
         self.parse_sequence(|p| p.parse_term_expecting_sort(&Sort::Bool), false)
-    }
-
-    /// Parses an argument for a `step` command.
-    fn parse_proof_arg(&mut self) -> CarcaraResult<ProofArg> {
-        if self.current_token == Token::OpenParen {
-            self.next_token()?; // Consume `(` token
-
-            // If we encounter a `(` token, this could be an assignment argument of the form
-            // `(:= <symbol> <term>)`, or a regular term that starts with `(`. Note that the
-            // lexer reads `:=` as a keyword with contents `=`.
-            if self.current_token == Token::Keyword("=".into()) {
-                self.next_token()?; // Consume `:=` token
-                let name = self.expect_symbol()?;
-                let value = self.parse_term()?;
-                self.expect_token(Token::CloseParen)?;
-                Ok(ProofArg::Assign(name, value))
-            } else {
-                // If the first token is not `:=`, this argument is just a regular term. Since
-                // we already consumed the `(` token, we have to call `parse_application`
-                // instead of `parse_term`.
-                let term = self.parse_application()?;
-                Ok(ProofArg::Term(term))
-            }
-        } else {
-            let term = self.parse_term()?;
-            Ok(ProofArg::Term(term))
-        }
     }
 
     /// Parses a sorted variable of the form `(<symbol> <sort>)`.

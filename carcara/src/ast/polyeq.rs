@@ -10,8 +10,7 @@
 use rug::Rational;
 
 use super::{
-    AnchorArg, BindingList, Constant, Operator, ProofArg, ProofCommand, ProofStep, Rc, Sort,
-    Subproof, Term,
+    AnchorArg, BindingList, Constant, Operator, ProofCommand, ProofStep, Rc, Sort, Subproof, Term,
 };
 use crate::utils::HashMapStack;
 use std::time::{Duration, Instant};
@@ -678,16 +677,6 @@ impl PolyeqComparable for AnchorArg {
             (AnchorArg::Assign(a_name, a_value), AnchorArg::Assign(b_name, b_value)) => {
                 a_name == b_name && comp.eq(a_value, b_value)
             }
-            _ => false,
-        }
-    }
-}
-
-impl PolyeqComparable for ProofArg {
-    fn eq(comp: &mut Polyeq, a: &Self, b: &Self) -> bool {
-        match (a, b) {
-            (ProofArg::Term(a), ProofArg::Term(b)) => comp.eq(a, b),
-            (ProofArg::Assign(sa, ta), ProofArg::Assign(sb, tb)) => sa == sb && comp.eq(ta, tb),
             _ => false,
         }
     }

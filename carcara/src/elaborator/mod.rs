@@ -223,10 +223,7 @@ impl<'e> Elaborator<'e> {
             clause: vec![term.clone()],
             rule: "resolution".to_owned(),
             premises: vec![new_assume, equiv1_step],
-            args: vec![
-                ProofArg::Term(premise),
-                ProofArg::Term(self.pool.bool_true()),
-            ],
+            args: vec![premise, self.pool.bool_true()],
             ..Default::default()
         }))
     }

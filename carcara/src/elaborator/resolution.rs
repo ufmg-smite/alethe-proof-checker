@@ -27,9 +27,7 @@ pub fn resolution(
                     clause: Vec::new(),
                     rule: "resolution".to_owned(),
                     premises: vec![step.premises[0].clone(), true_step],
-                    args: [true, false]
-                        .map(|a| ProofArg::Term(pool.bool_constant(a)))
-                        .to_vec(),
+                    args: [true, false].map(|a| pool.bool_constant(a)).to_vec(),
                     ..Default::default()
                 })));
             }
@@ -62,7 +60,6 @@ pub fn resolution(
     let pivots = pivot_trace
         .into_iter()
         .flat_map(|(pivot, polarity)| [pivot, pool.bool_constant(polarity)])
-        .map(ProofArg::Term)
         .collect();
 
     let mut resolution_step = StepNode {
@@ -128,7 +125,6 @@ pub fn resolution(
         // original resolution step's conclusion
         let args = [c, pool.bool_true(), quadruple_not_c, pool.bool_true()]
             .into_iter()
-            .map(ProofArg::Term)
             .collect();
 
         Ok(Rc::new(ProofNode::Step(StepNode {

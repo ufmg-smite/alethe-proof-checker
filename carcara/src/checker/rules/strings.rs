@@ -340,7 +340,7 @@ pub fn concat_eq(
     match_term_err!((= x y) = &conclusion[0])?;
 
     let term = get_premise_term(&premises[0])?;
-    let rev = args[0].as_term()?.as_bool_err()?;
+    let rev = args[0].as_bool_err()?;
     let (s, t) = match_term_err!((= s t) = term)?;
 
     let (ss, ts) = strip_prefix_or_suffix(pool, s.clone(), t.clone(), rev, polyeq_time)?;
@@ -374,7 +374,7 @@ pub fn concat_unify(
 
     let term = get_premise_term(&premises[0])?;
     let prefixes = get_premise_term(&premises[1])?;
-    let rev = args[0].as_term()?.as_bool_err()?;
+    let rev = args[0].as_bool_err()?;
     let (s, t) = match_term_err!((= s t) = term)?;
     let (s_1, t_1) = match_term_err!((= (strlen s_1) (strlen t_1)) = prefixes)?;
 
@@ -407,7 +407,7 @@ pub fn concat_conflict(
     assert_clause_len(conclusion, 1)?;
 
     let term = get_premise_term(&premises[0])?;
-    let rev = args[0].as_term()?.as_bool_err()?;
+    let rev = args[0].as_bool_err()?;
     if conclusion[0].as_bool_err()? {
         return Err(CheckerError::ExpectedBoolConstant(
             false,
@@ -890,7 +890,7 @@ pub fn string_decompose(
     assert_clause_len(conclusion, 1)?;
 
     let term = get_premise_term(&premises[0])?;
-    let rev = args[0].as_term()?.as_bool_err()?;
+    let rev = args[0].as_bool_err()?;
     let (t, n) = match_term_err!((>= (strlen t) n) = term)?;
 
     match_term_err!(
@@ -919,7 +919,7 @@ pub fn string_length_pos(RuleArgs { args, conclusion, polyeq_time, .. }: RuleArg
     assert_num_args(args, 1)?;
     assert_clause_len(conclusion, 1)?;
 
-    let t = args[0].as_term()?;
+    let t = &args[0];
     let (((t_1, _), (t_2, _)), (t_3, _)) = match_term_err!(
         (or
             (and

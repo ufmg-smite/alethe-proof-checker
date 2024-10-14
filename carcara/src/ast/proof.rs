@@ -1,5 +1,4 @@
 use super::{ProofIter, Rc, SortedVar, Term};
-use crate::CheckerError;
 
 /// A proof in the Alethe format.
 #[derive(Debug, Clone)]
@@ -46,21 +45,11 @@ pub struct ProofStep {
     pub premises: Vec<(usize, usize)>,
 
     /// The step arguments, given via the `:args` attribute.
-    pub args: Vec<ProofArg>,
+    pub args: Vec<Rc<Term>>,
 
     /// The local premises that this step discharges, given via the `:discharge` attribute, and
     /// indexed similarly to premises.
     pub discharge: Vec<(usize, usize)>,
-}
-
-/// An argument for a `step` command.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ProofArg {
-    /// An argument that is just a term.
-    Term(Rc<Term>),
-
-    /// An argument of the form `(:= <symbol> <term>)`.
-    Assign(String, Rc<Term>),
 }
 
 /// A subproof.
@@ -138,26 +127,6 @@ impl ProofCommand {
     /// Returns `true` if the command is a subproof.
     pub fn is_subproof(&self) -> bool {
         matches!(self, ProofCommand::Subproof(_))
-    }
-}
-
-impl ProofArg {
-    /// If this argument is a "term style" argument, extracts that term from it. Otherwise, returns
-    /// an error.
-    pub fn as_term(&self) -> Result<&Rc<Term>, CheckerError> {
-        match self {
-            ProofArg::Term(t) => Ok(t),
-            ProofArg::Assign(s, t) => Err(CheckerError::ExpectedTermStyleArg(s.clone(), t.clone())),
-        }
-    }
-
-    /// If this argument is an "assign style" argument, extracts the variable name and the value
-    /// term from it. Otherwise, returns an error.
-    pub fn as_assign(&self) -> Result<(&String, &Rc<Term>), CheckerError> {
-        match self {
-            ProofArg::Assign(s, t) => Ok((s, t)),
-            ProofArg::Term(t) => Err(CheckerError::ExpectedAssignStyleArg(t.clone())),
-        }
     }
 }
 

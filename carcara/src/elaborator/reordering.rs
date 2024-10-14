@@ -63,8 +63,8 @@ fn recompute_resolution(step: &StepNode) -> Vec<Rc<Term>> {
         .args
         .chunks(2)
         .map(|chunk| {
-            let pivot = chunk[0].as_term().unwrap();
-            let polarity = chunk[1].as_term().unwrap().is_bool_true();
+            let pivot = &chunk[0];
+            let polarity = chunk[1].is_bool_true();
             (pivot, polarity)
         })
         .collect();

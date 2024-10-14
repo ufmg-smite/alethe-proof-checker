@@ -126,12 +126,6 @@ pub enum CheckerError {
     #[error("expected 'let' term, got '{0}'")]
     ExpectedLetTerm(Rc<Term>),
 
-    #[error("expected term style argument, got assign style argument: '(:= {0} {1})'")]
-    ExpectedTermStyleArg(String, Rc<Term>),
-
-    #[error("expected assign style '(:= ...)' argument, got term style argument: '{0}'")]
-    ExpectedAssignStyleArg(Rc<Term>),
-
     #[error("expected term {0} to be a prefix of {1}")]
     ExpectedToBePrefix(Rc<Term>, Rc<Term>),
 

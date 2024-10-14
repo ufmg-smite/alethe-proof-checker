@@ -218,7 +218,7 @@ pub struct StepNode {
     pub premises: Vec<Rc<ProofNode>>,
 
     /// The step arguments, given via the `:args` attribute.
-    pub args: Vec<ProofArg>,
+    pub args: Vec<Rc<Term>>,
 
     /// The local premises that this step discharges, given via the `:discharge` attribute.
     pub discharge: Vec<Rc<ProofNode>>,

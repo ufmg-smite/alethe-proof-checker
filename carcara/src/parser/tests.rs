@@ -579,12 +579,11 @@ fn test_step() {
         (step t1 (cl (= (+ 2 3) (- 1 2))) :rule rule-name)
         (step t2 (cl) :rule rule-name :premises (t1))
         (step t3 (cl) :rule rule-name :args (1 2.0 \"three\"))
-        (step t4 (cl) :rule rule-name :args ((:= a 12) (:= b 3.14) (:= c (* 6 7))))
-        (step t5 (cl) :rule rule-name :premises (t1 t2 t3) :args (42)
+        (step t4 (cl) :rule rule-name :premises (t1 t2 t3) :args (42)
             :ignore_this :and_this (blah blah 0 1))
     ";
     let proof = parse_proof(&mut p, input);
-    assert_eq!(proof.commands.len(), 5);
+    assert_eq!(proof.commands.len(), 4);
 
     assert_eq!(
         &proof.commands[0],
@@ -624,7 +623,7 @@ fn test_step() {
                     Term::new_string("three"),
                 ]
                 .into_iter()
-                .map(|term| ProofArg::Term(p.add(term)))
+                .map(|term| p.add(term))
                 .collect()
             },
             discharge: Vec::new(),
@@ -637,26 +636,8 @@ fn test_step() {
             id: "t4".into(),
             clause: Vec::new(),
             rule: "rule-name".into(),
-            premises: Vec::new(),
-            args: {
-                vec![
-                    ProofArg::Assign("a".into(), p.add(Term::new_int(12))),
-                    ProofArg::Assign("b".into(), p.add(Term::new_real((314, 100)))),
-                    ProofArg::Assign("c".into(), parse_term(&mut p, "(* 6 7)")),
-                ]
-            },
-            discharge: Vec::new(),
-        })
-    );
-
-    assert_eq!(
-        &proof.commands[4],
-        &ProofCommand::Step(ProofStep {
-            id: "t5".into(),
-            clause: Vec::new(),
-            rule: "rule-name".into(),
             premises: vec![(0, 0), (0, 1), (0, 2)],
-            args: vec![ProofArg::Term(p.add(Term::new_int(42)))],
+            args: vec![p.add(Term::new_int(42))],
             discharge: Vec::new(),
         })
     );

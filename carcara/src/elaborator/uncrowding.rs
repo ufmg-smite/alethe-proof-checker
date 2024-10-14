@@ -15,8 +15,8 @@ struct ResolutionPremise<'a> {
 impl<'a> ResolutionPremise<'a> {
     fn from_step(step: &'a StepNode) -> Vec<Self> {
         let pivots = std::iter::once(None).chain(step.args.chunks(2).map(|chunk| {
-            let pivot = chunk[0].as_term().unwrap().remove_all_negations();
-            let polarity = chunk[1].as_term().unwrap().is_bool_true();
+            let pivot = chunk[0].remove_all_negations();
+            let polarity = chunk[1].is_bool_true();
             Some((pivot, polarity))
         }));
         step.premises
@@ -154,7 +154,6 @@ fn add_partial_resolution_step<'a>(
             let (literal, polarity) = p.pivot.unwrap();
             [literal_to_term(pool, literal), pool.bool_constant(polarity)]
         })
-        .map(ProofArg::Term)
         .collect();
 
     let resolution_step = Rc::new(ProofNode::Step(StepNode {

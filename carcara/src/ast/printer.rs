@@ -356,10 +356,10 @@ impl<'a> AlethePrinter<'a> {
 
         if let [head, tail @ ..] = step.args.as_slice() {
             write!(self.inner, " :args (")?;
-            self.write_proof_arg(head)?;
+            head.print_with_sharing(self)?;
             for arg in tail {
                 write!(self.inner, " ")?;
-                self.write_proof_arg(arg)?;
+                arg.print_with_sharing(self)?;
             }
             write!(self.inner, ")")?;
         }
@@ -376,17 +376,6 @@ impl<'a> AlethePrinter<'a> {
 
         write!(self.inner, ")")?;
         Ok(())
-    }
-
-    fn write_proof_arg(&mut self, arg: &ProofArg) -> io::Result<()> {
-        match arg {
-            ProofArg::Term(t) => t.print_with_sharing(self),
-            ProofArg::Assign(name, value) => {
-                write!(self.inner, "(:= {} ", name)?;
-                value.print_with_sharing(self)?;
-                write!(self.inner, ")")
-            }
-        }
     }
 
     fn write_lia_smt_instance(&mut self, clause: &[Rc<Term>]) -> io::Result<()> {

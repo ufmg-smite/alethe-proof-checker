@@ -263,7 +263,6 @@ pub fn la_generic(RuleArgs { conclusion, args, .. }: RuleArgs) -> RuleResult {
     let args: Vec<_> = args
         .iter()
         .map(|a| {
-            let a = a.as_term()?;
             a.as_fraction()
                 .ok_or_else(|| CheckerError::ExpectedAnyNumber(a.clone()))
         })
