@@ -910,15 +910,7 @@ impl<'a, R: BufRead> Parser<'a, R> {
         let args = if self.current_token == Token::Keyword("args".into()) {
             self.next_token()?;
             self.expect_token(Token::OpenParen)?;
-
-            // If the rule is `hole`, we want to allow any invalid arguments, so we read the rest of
-            // the `:args` attribute without trying to parse anything
-            if rule == "hole" {
-                self.ignore_until_close_parens()?;
-                Vec::new()
-            } else {
-                self.parse_sequence(Self::parse_term, true)?
-            }
+            self.parse_sequence(Self::parse_term, true)?
         } else {
             Vec::new()
         };
