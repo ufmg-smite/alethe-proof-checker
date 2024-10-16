@@ -68,6 +68,9 @@ pub enum CheckerError {
     #[error("term '{0}' is not a valid n-ary operation")]
     NotValidNaryTerm(Rc<Term>),
 
+    #[error("cannot evaluate the fixed length of the term '{0}'")]
+    LengthCannotBeEvaluated(Rc<Term>),
+
     // General errors
     #[error("expected {0} premises, got {1}")]
     WrongNumberOfPremises(Range, usize),

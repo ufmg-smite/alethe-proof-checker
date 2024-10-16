@@ -478,6 +478,11 @@ impl<'c> ProofChecker<'c> {
             "string_length_pos" => strings::string_length_pos,
             "string_length_non_empty" => strings::string_length_non_empty,
 
+            "re_inter" => strings::re_inter,
+            "re_unfold_neg" => strings::re_unfold_neg,
+            "re_unfold_neg_concat_fixed_prefix" => strings::re_unfold_neg_concat_fixed_prefix,
+            "re_unfold_neg_concat_fixed_suffix" => strings::re_unfold_neg_concat_fixed_suffix,
+
             // Special rules that always check as valid, and are used to indicate holes in the
             // proof.
             "hole" => |_| Ok(()),
