@@ -5,7 +5,7 @@ mod path_args;
 
 use carcara::{
     ast, benchmarking::OnlineBenchmarkResults, check, check_and_elaborate, check_parallel, checker,
-    elaborator, generate_lia_smt_instances, parser,
+    elaborator, generate_lia_smt_instances, parser, translation::printer::PrintProof,
 };
 use clap::{AppSettings, ArgEnum, Args, Parser, Subcommand};
 use const_format::{formatcp, str_index};
@@ -649,15 +649,48 @@ fn generate_lia_problems_command(options: ParseCommandOptions, use_sharing: bool
 }
 
 fn translate_command(options: TranslateCommandOptions) -> CliResult<()> {
-    let (problem, proof) = get_instance(&options.input)?;
-    let (_, proof, _) = parser::parse_instance(problem, proof, options.parsing.into())
-        .map_err(carcara::Error::from)?;
+    let (mut problem, mut proof) = get_instance(&options.input)?;
+    let mut str_problem = String::new();
+    let _ = problem.read_to_string(&mut str_problem);
+    let mut str_proof = String::new();
+    let _ = proof.read_to_string(&mut str_proof);
 
-    let node = ast::ProofNode::from_commands(proof.commands);
+    let (alethe_problem, alethe_proof, _) = parser::parse_instance(
+        str_problem.as_bytes(),
+        str_proof.as_bytes(),
+        options.parsing.into(),
+    )
+    .map_err(carcara::Error::from)?;
 
-    let mut translator = carcara::translation::eunoia::EunoiaTranslator {};
-    let _ = translator.translate(&node);
-    // TODO: implement Eunoia printer
+    let node = ast::ProofNode::from_commands(alethe_proof.commands);
+
+    let mut translator = carcara::translation::eunoia::EunoiaTranslator::new();
+    let eunoia_prelude = translator.translate_problem_prelude(&alethe_problem);
+    let eunoia_proof = translator.translate(&node);
+
+    let mut buf_proof = Vec::new();
+    let s_exp_formatter_proof = carcara::translation::printer::SExpFormatter::new(&mut buf_proof);
+    let mut printer_proof =
+        carcara::translation::printer::EunoiaPrinter::new(s_exp_formatter_proof);
+
+    printer_proof.write_proof(eunoia_proof).unwrap();
+
+    let mut buf_prelude = Vec::new();
+    let s_exp_formatter_prelude =
+        carcara::translation::printer::SExpFormatter::new(&mut buf_prelude);
+    let mut printer_prelude =
+        carcara::translation::printer::EunoiaPrinter::new(s_exp_formatter_prelude);
+
+    printer_prelude.write_proof(&eunoia_prelude).unwrap();
+
+    // TODO: do not hard-code this in here
+    // TODO: fix where to include these depedencies
+    // Include Alethe's mechanization in Eunoia
+    println!("(include \"Alethe.eo\")");
+    println!("(include \"theory.eo\")");
+    println!("(include \"programs.eo\")");
+    println!("{}", std::str::from_utf8(&buf_prelude).unwrap());
+    println!("{}", std::str::from_utf8(&buf_proof).unwrap());
 
     Ok(())
 }

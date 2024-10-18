@@ -1,4 +1,4 @@
-/// AST's of a fragment of Eunoia required to mechanize Alethe proofs.
+//! AST representation of a fragment of Eunoia required to mechanize Alethe proofs.
 
 // TODO:
 pub struct EunoiaTheorySignature;
@@ -7,8 +7,17 @@ pub struct EunoiaTheorySignature;
 /// SMT-LIB version 3.0 symbol.
 pub type Symbol = String;
 
-/// Attributes of annotated type variables.
+/// Just a generic wrapper for Vecs, to add structural information to ASTs.
+/// Represents an actual list of stuff, to capture the structure of something
+/// like `(<type>*)` in `(declare-type <symbol> (<type>*))`, as opposed to
+/// something like `<attr>*` in `(declare-const <symbol> <type> <attr>*)`.
 #[derive(Debug, PartialEq, Clone)]
+pub struct EunoiaList<T> {
+    pub list: Vec<T>,
+}
+
+/// Attributes of annotated type variables.
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum EunoiaTypeAttr {
     // :var symbol
     Var(Symbol),
@@ -29,7 +38,7 @@ pub enum EunoiaTypeAttr {
 
 // TODO: check if this name is adequate
 /// Kind parameters: (! T :var A ...)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum EunoiaKindParam {
     // Annotated kind variable, like: (! Type :var A :implicit)
 
@@ -59,7 +68,7 @@ pub enum EunoiaKindParam {
 // TODO: types (expressions denoting sets of values) and kinds (expressions denoting sets of types)
 // types as sets? should we change that in the manual?
 /// Type terms.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum EunoiaType {
     // Built-in primitive types.
     // Eunoia has 'Bool' as a built-in type
@@ -80,7 +89,7 @@ pub enum EunoiaType {
 
 // TODO: using it also for EunoiaTypedParam
 /// Annotated attributes in declarations of constants.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum EunoiaConsAttr {
     // :right-assoc
     RightAssoc,
@@ -103,7 +112,7 @@ pub enum EunoiaConsAttr {
 #[derive(Debug, PartialEq)]
 pub struct EunoiaTypedParam {
     pub name: Symbol,
-    pub eunoia_type: EunoiaTerm,
+    pub eunoia_type: EunoiaType,
     pub attrs: Vec<EunoiaConsAttr>,
 }
 
@@ -111,7 +120,7 @@ pub struct EunoiaTypedParam {
 #[derive(Debug, PartialEq)]
 pub enum EunoiaDefineAttr {
     // :type
-    Type,
+    Type(EunoiaType),
 }
 
 // /// Eunoia declare-consts
@@ -137,7 +146,7 @@ pub enum EunoiaLitCategory {
 }
 
 // NOTE: a more expressive grammar, to enforce compositional semantics
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub enum EunoiaTerm {
     // TODO: it is not clear how to includes Types and Kinds
     Type(EunoiaType),
@@ -176,24 +185,28 @@ pub enum EunoiaTerm {
 
     // TODO: different with Id(Symbol)?
     // TODO: not using ID tag for Symbol...
-    // A variable, consisting of an identifier and a sort.
+    // A variable, consisting of an identifier and a sort
+    // TODO: equivalent to Alethe's SortedVar?
     Var(Symbol, Box<EunoiaTerm>),
 
-    // TODO: not using ID tag for Symbol...
-    // TODO: actually, Eunoia's grammar does not consider
-    // (<symbol> <term>+) to be an application, but rather
-    // an arbitrary list of terms, beginning with a symbol.
-    // This gives a context-dependent semantics for such phrases,
-    // maybe going against the idea of a "compositional semantics".
-    // NOTE: Eunoia's grammar is, actually, (<symbol> <term>+) (note the '+')
-    List(Symbol, Vec<EunoiaTerm>),
+    // To capture the situations where a list of
+    // terms is to be considered also a term (as opposed to a
+    // list of terms that represents, for example, formal
+    // parameters in some definition).
+    // NOTE: Eunoia's grammar is, actually, (<symbol> <term>+) (note the '+').
+    List(Vec<EunoiaTerm>),
+
+    // To capture the situation where a list of terms are
+    // actually an evaluation of some given function over
+    // actual parameters.
+    App(Symbol, Vec<EunoiaTerm>),
 
     // Application of a built-in operator
     Op(EunoiaOperator, Vec<EunoiaTerm>),
 }
 
 /// Eunoia's built-in computational operators.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum EunoiaOperator {
     // eo::xor
     Xor,
@@ -253,7 +266,7 @@ pub enum EunoiaCommand {
     // Eunoia definitions.
     Define {
         name: Symbol,
-        typed_params: Vec<EunoiaTypedParam>,
+        typed_params: EunoiaList<EunoiaTypedParam>,
         term: EunoiaTerm,
         attrs: Vec<EunoiaDefineAttr>,
     },
@@ -262,13 +275,12 @@ pub enum EunoiaCommand {
     // (program <symbol> (<typed-param>*) (<type>*) <type> ((<term> <term>)+)) |
     Program {
         name: Symbol,
-        typed_params: Vec<EunoiaTypedParam>,
-        params: Vec<EunoiaType>,
-        ret: Vec<EunoiaType>,
-        body: Vec<(EunoiaTerm, EunoiaTerm)>,
+        typed_params: EunoiaList<EunoiaTypedParam>,
+        params: EunoiaList<EunoiaType>,
+        ret: EunoiaType,
+        body: EunoiaList<(EunoiaTerm, EunoiaTerm)>,
     },
 
-    // TODO: why does Alethes AST for premises
     // TODO:
     // The command:
     // (step s f :rule r :premises (p1 ... pn) :args (t1 ... tm))
@@ -278,22 +290,20 @@ pub enum EunoiaCommand {
     /// (step <symbol> <term>? :rule <symbol> <premises>? <arguments>?)
     Step {
         name: Symbol,
-        // NOTE: this must be an application of Alethe's cl operator over
-        // a possible empty list of terms
-        conclusion_clause: EunoiaTerm,
+        conclusion_clause: Option<EunoiaTerm>,
         rule: Symbol,
-        premises: Vec<Symbol>,
-        arguments: Vec<EunoiaTerm>,
+        premises: EunoiaList<EunoiaTerm>,
+        arguments: EunoiaList<EunoiaTerm>,
     },
 
     /// Step that might consume a local assumption, previously introduced by
     /// 'assume-push'.
     StepPop {
         name: Symbol,
-        term: EunoiaTerm,
+        conclusion_clause: Option<EunoiaTerm>,
         rule: Symbol,
-        premises: Vec<EunoiaTerm>,
-        arguments: Vec<EunoiaTerm>,
+        premises: EunoiaList<EunoiaTerm>,
+        arguments: EunoiaList<EunoiaTerm>,
     },
 
     // Common commands
@@ -311,6 +321,13 @@ pub enum EunoiaCommand {
         name: Symbol,
         eunoia_type: EunoiaTerm,
         attrs: Vec<EunoiaConsAttr>,
+    },
+
+    // TODO: EunoiaTerm or EunoiaType?
+    // (declare-type <symbol> (<type>*))
+    DeclareType {
+        name: Symbol,
+        kind: EunoiaList<EunoiaType>,
     },
 
     // SMT-lib 2 commands

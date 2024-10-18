@@ -50,7 +50,7 @@ pub fn write_lia_smt_instance(
     printer.write_lia_smt_instance(clause)
 }
 
-trait PrintProof {
+pub trait PrintProof {
     fn write_proof(&mut self, proof: &Proof) -> io::Result<()>;
 }
 
