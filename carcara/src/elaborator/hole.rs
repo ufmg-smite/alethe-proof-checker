@@ -149,6 +149,7 @@ fn parse_and_check_solver_proof(
         expand_lets: true,
         allow_int_real_subtyping: true,
         strict: false,
+        parse_hole_args: false,
     };
 
     let (problem, proof) = parser::parse_instance_with_pool(problem, proof, config, pool)?;

@@ -45,6 +45,10 @@ pub struct Config {
     /// - Unary `and`, `or` and `xor` terms are not allowed
     /// - Anchor arguments using the old syntax (i.e., `(:= <symbol> <term>)`) are not allowed
     pub strict: bool,
+
+    /// If `true`, the parser will parse arguments to the `hole` rule, expecting them to be valid
+    /// terms.
+    pub parse_hole_args: bool,
 }
 
 impl Config {
@@ -910,7 +914,16 @@ impl<'a, R: BufRead> Parser<'a, R> {
         let args = if self.current_token == Token::Keyword("args".into()) {
             self.next_token()?;
             self.expect_token(Token::OpenParen)?;
-            self.parse_sequence(Self::parse_term, true)?
+
+            // If the rule is `hole` and `--parse-hole-args` is not enabled, we want to allow any
+            // invalid arguments, so we read the rest of the `:args` attribute without trying to
+            // parse anything
+            if rule == "hole" && !self.config.parse_hole_args {
+                self.ignore_until_close_parens()?;
+                Vec::new()
+            } else {
+                self.parse_sequence(Self::parse_term, true)?
+            }
         } else {
             Vec::new()
         };
