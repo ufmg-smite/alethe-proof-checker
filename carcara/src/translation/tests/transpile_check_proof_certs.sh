@@ -2,7 +2,7 @@
 
 # Transpiles to Eunoia problem preludes and corresponding proof certificates,
 # contained in $DIR. Uses $COMMAND to invoke 'carcara'.
-DIR="./preludes/"
+DIR="./problems/"
 # TODO: installation-dependent relative paths
 CARCARA_COMMAND="../../../../target/debug/carcara translate"
 ETHOS_COMMAND="../../../../../ethos_fork/ethos/build/src/ethos"
@@ -36,7 +36,7 @@ for FILE in "$DIR"/*; do
                     echo ""
                 else
                     # rm "$EUNOIA_OUTPUT"
-                    echo "Ethos failed on file $FILE"
+                    echo "Ethos failed on file $EUNOIA_OUTPUT"
                     echo ""
                 fi
             else

@@ -31,10 +31,8 @@ fn test_small_example() {
     let s_exp_formatter_proof = SExpFormatter::new(&mut buf_proof);
     let mut printer_proof = EunoiaPrinter::new(s_exp_formatter_proof);
 
-    let problem_prelude = "(set-logic QF_UFLRA)
-                   (declare-const a Real)
+    let problem_prelude = "(declare-const a Real)
                    (declare-const b Real)
-
                    (assert (xor (not (> a 5.0)) (= b 10.0)))
                    (assert (not (= b 10.0)))
                    (assert (not (<= a 5.0)))";
@@ -67,8 +65,7 @@ fn test_small_example() {
     printer_prelude.write_proof(&eunoia_prelude).unwrap();
 
     assert_eq!(
-        "(set-logic QF_UFLRA)\n\
-         (declare-const a Real)\n\
+        "(declare-const a Real)\n\
          (declare-const b Real)\n",
         std::str::from_utf8(&buf_prelude).unwrap()
     );
@@ -79,8 +76,12 @@ fn test_small_example() {
     printer_proof.write_proof(eunoia_proof).unwrap();
 
     // TODO: fix differences with small.eo
+    // TODO: maybe we do not need to have a context created if we do not
+    // have an anchor statement previously
     assert_eq!(
-        "(assume h1 (xor (not (> a 5.0)) (= b 10.0)))\n\
+        "(define ctx0 ( ) true)\n\
+         (assume context ctx0)\n\
+         (assume h1 (xor (not (> a 5.0)) (= b 10.0)))\n\
          (step t1 (@cl (not (> a 5.0)) (= b 10.0)) :rule xor1 :premises ( h1 ))\n\
          (step t2 (@cl (<= a 5.0) (> a 5.0)) :rule la_generic :args ( 1.0 1.0 ))\n\
          (assume h2 (not (= b 10.0)))\n\
@@ -125,8 +126,7 @@ fn test_let_example() {
     printer_prelude.write_proof(&eunoia_prelude).unwrap();
 
     assert_eq!(
-        "(set-logic UF)\n\
-         (declare-type S ( ))\n\
+        "(declare-type S ( ))\n\
          (declare-const a S)\n\
          (declare-const b S)\n",
         std::str::from_utf8(&buf_prelude).unwrap()
@@ -138,15 +138,16 @@ fn test_let_example() {
     printer_proof.write_proof(eunoia_proof).unwrap();
 
     assert_eq!(
-        "(assume h1 (= a b))\n\
-         (define ctx0 ( ) true)\n\
+        "(define ctx0 ( ) true)\n\
          (assume context ctx0)\n\
+         (assume h1 (= a b))\n\
          (define ctx1 ( ) (@ctx ( ( x S ) ) (and (= x b) ctx0)))\n\
          (assume-push context ctx1)\n\
          (step t1 (@cl (= (@var ( ( x S ) ) x) b)) \
-         :rule refl :premises ( context ))\n\
+         :rule refl :args ( context (@var ( ( x S ) ) x) b ))\n\
          (step-pop t2 (@cl (= (@let ( ( x S ) ) (@var ( ( x S ) ) x)) b)) \
-         :rule let_elim :premises ( context t1 ))\n",
+         :rule let_elim :premises ( t1 ) \
+         :args ( context (@let ( ( x S ) ) (@var ( ( x S ) ) x)) b ))\n",
         std::str::from_utf8(&buf_proof).unwrap()
     );
 }

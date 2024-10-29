@@ -174,12 +174,8 @@ impl<'a> PrintProof for EunoiaPrinter<'a> {
 
                     args.push(name.clone());
 
-                    match conclusion_clause {
-                        Some(term) => {
-                            args.push(EunoiaPrinter::term_to_concrete_syntax(term));
-                        }
-
-                        None => {}
+                    if let Some(term) = conclusion_clause {
+                        args.push(EunoiaPrinter::term_to_concrete_syntax(term));
                     };
 
                     args.push(":rule ".to_owned() + &rule.clone());
@@ -217,12 +213,8 @@ impl<'a> PrintProof for EunoiaPrinter<'a> {
 
                     args.push(name.clone());
 
-                    match conclusion_clause {
-                        Some(term) => {
-                            args.push(EunoiaPrinter::term_to_concrete_syntax(term));
-                        }
-
-                        None => {}
+                    if let Some(term) = conclusion_clause {
+                        args.push(EunoiaPrinter::term_to_concrete_syntax(term));
                     };
 
                     // TODO: rule names are not equal: let -> let_elim
@@ -398,15 +390,14 @@ impl<'a> EunoiaPrinter<'a> {
 
                 kind_params.iter().for_each(|kind| {
                     ret += &EunoiaPrinter::kind_param_to_concrete_syntax(kind);
+                    ret += " ";
                 });
-
-                ret += " ";
 
                 dom.iter().for_each(|some_type| {
                     ret += &EunoiaPrinter::type_to_concrete_syntax(some_type);
+                    ret += " ";
                 });
 
-                ret += " ";
                 ret += &EunoiaPrinter::type_to_concrete_syntax(codom);
                 ret += ")";
             }

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Generates Alethe proof certificates, using $COMMAND, from problem preludes 
+# Generates Alethe proof certificates, using $COMMAND, from input problems
 # contained in $DIR.
-DIR="./preludes/"
+DIR="./problems/"
 COMMAND="cvc5 --dump-proofs --proof-format-mode=alethe"
 
 # Loop through each file in the directory.

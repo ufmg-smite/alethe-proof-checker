@@ -7,9 +7,11 @@ use crate::translation::eunoia_ast::*;
 
 use indexmap::IndexSet;
 use std::collections::HashMap;
+// Deref for ast::rc::Rc<Term>
+use std::ops::Deref;
 
 pub struct EunoiaTranslator {
-    /// Actual EunoiaProof object containing the translation.
+    /// Actual `EunoiaProof` object containing the translation.
     eunoia_proof: EunoiaProof,
 
     // TODO: see for a better way of including Alethe's signature
@@ -17,26 +19,24 @@ pub struct EunoiaTranslator {
     /// "Alethe in Eunoia" signature considered during translation.
     alethe_signature: AletheTheory,
 
-    /// Maintains contextual premises that must be included as
-    /// premises in each step being translated. Typically they refer
-    /// to the actual "context" computed form the set of variables and
-    /// mappings defined through Alethe 'anchor' statements.
-    // TODO: would it be useful to use an IndexSet?, and to use borrows?
-    contextual_premises: Vec<EunoiaTerm>,
-
     /// Mapping variable -> sort for variables in scope, as introduced by
     /// Alethe's 'anchor' command.
     // TODO: would it be useful to use borrows?
+    // TODO: not taking into account fixed variables in context
     variables_in_scope: HashMap<String, EunoiaTerm>,
+
+    /// Counter for contexts opened: useful for naming context and reasong
+    /// about context opening.
+    contexts_opened: usize,
 }
 
 impl EunoiaTranslator {
     pub fn new() -> Self {
         Self {
-            eunoia_proof: vec![],
+            eunoia_proof: Vec::new(),
             alethe_signature: AletheTheory::new(),
-            contextual_premises: Vec::new(),
             variables_in_scope: HashMap::new(),
+            contexts_opened: 0,
         }
     }
 
@@ -64,10 +64,30 @@ impl EunoiaTranslator {
         // TODO: Subproof has a context_id that could be used instead of contexts_opened
         // TODO: is it possible to define a private name-space prefixing some
         // symbol?
+        // TODO: refl only applies if there is a context already defined,
+        // that is, if we are within a subproof, defined with anchor?
         // Counter for contexts opened
-        let mut contexts_opened = 0;
-        // TODO: do not hard-code this string constants
-        let mut context_name = String::from("ctx") + &contexts_opened.to_string();
+        if self.contexts_opened == 0 {
+            // TODO: do not hard-code this string constants
+            let context_name = String::from("ctx") + &self.contexts_opened.to_string();
+
+            // (define ctx0 () true)
+            self.eunoia_proof.push(EunoiaCommand::Define {
+                name: context_name.clone(), // TODO: performance?
+                typed_params: EunoiaList { list: vec![] },
+                term: EunoiaTerm::True,
+                attrs: Vec::new(),
+            });
+
+            // (assume context ctx0)
+            self.eunoia_proof.push(EunoiaCommand::Assume {
+                // TODO: do not hard-code this string
+                name: String::from("context"),
+                term: EunoiaTerm::Id(context_name.clone()),
+            });
+
+            self.contexts_opened += 1;
+        }
 
         loop {
             some_command = command_list_iter.next();
@@ -107,11 +127,6 @@ impl EunoiaTranslator {
                                     self.variables_in_scope
                                         .insert(name.clone(), self.translate_term(sort));
 
-                                    // ctx_params.push(EunoiaTerm::List(
-                                    //     vec![EunoiaTerm::Id(name.clone()),
-                                    //          self.translate_term(sort),
-                                    //     ],
-                                    // ));
                                     ctx_typed_params.push(EunoiaTerm::List(vec![
                                         EunoiaTerm::Id(name.clone()),
                                         self.translate_term(sort),
@@ -138,8 +153,11 @@ impl EunoiaTranslator {
                                     ]));
                                 }
                             });
-
-                            and_params.push(EunoiaTerm::Id(context_name.clone()));
+                            // TODO: do not hard-code this string
+                            // TODO: ugly!
+                            and_params.push(EunoiaTerm::Id(
+                                String::from("ctx") + &(self.contexts_opened - 1).to_string(),
+                            ));
 
                             // Add typed params.
                             ctx_params.push(EunoiaTerm::List(ctx_typed_params));
@@ -150,34 +168,37 @@ impl EunoiaTranslator {
                                 and_params,
                             ));
 
-                            if contexts_opened == 0 {
-                                // (define ctx0 () true)
-                                self.eunoia_proof.push(EunoiaCommand::Define {
-                                    name: context_name.clone(), // TODO: performance?
-                                    typed_params: EunoiaList { list: vec![] },
-                                    term: EunoiaTerm::True,
-                                    attrs: Vec::new(),
-                                });
+                            // if contexts_opened == 0 {
+                            //     // (define ctx0 () true)
+                            //     self.eunoia_proof.push(EunoiaCommand::Define {
+                            //         name: context_name.clone(), // TODO: performance?
+                            //         typed_params: EunoiaList { list: vec![] },
+                            //         term: EunoiaTerm::True,
+                            //         attrs: Vec::new(),
+                            //     });
 
-                                // (assume context ctx0)
-                                self.eunoia_proof.push(EunoiaCommand::Assume {
-                                    // TODO: do not hard-code this string
-                                    name: String::from("context"),
-                                    term: EunoiaTerm::Id(context_name.clone()),
-                                });
-                            }
+                            //     // (assume context ctx0)
+                            //     self.eunoia_proof.push(EunoiaCommand::Assume {
+                            //         // TODO: do not hard-code this string
+                            //         name: String::from("context"),
+                            //         term: EunoiaTerm::Id(context_name.clone()),
+                            //     });
+                            // }
 
-                            // Add contextual premises.
-                            // TODO: do not hard-code this string
-                            self.contextual_premises
-                                .push(EunoiaTerm::Id("context".to_owned()));
+                            // // Add contextual premises.
+                            //
+                            // self.contextual_premises
+                            //     .push(EunoiaTerm::Id("context".to_owned()));
 
+                            // // Define and open a new context
+                            // // (define ctx1 () (@ctx ((x S)) (and (= x b) ctx0)))
+                            // // (assume-push context ctx1)
+                            //
                             // Define and open a new context
-                            // (define ctx1 () (@ctx ((x S)) (and (= x b) ctx0)))
-                            // (assume-push context ctx1)
-                            contexts_opened += 1;
-                            context_name = String::from("ctx") + &contexts_opened.to_string();
-
+                            // (define ctxn () (@ctx ...))
+                            // TODO: do not hard-code this string
+                            let context_name =
+                                String::from("ctx") + &self.contexts_opened.to_string();
                             self.eunoia_proof.push(EunoiaCommand::Define {
                                 name: context_name.clone(),
                                 typed_params: EunoiaList { list: Vec::new() },
@@ -186,14 +207,14 @@ impl EunoiaTranslator {
                                 attrs: Vec::new(),
                             });
 
-                            // (assume context ctx0)
+                            // (assume-push context ctxn)
                             self.eunoia_proof.push(EunoiaCommand::AssumePush {
                                 name: String::from("context"),
                                 term: EunoiaTerm::Id(context_name.clone()),
                             });
 
-                            // New context opened.
-                            contexts_opened += 1;
+                            // New context opened...
+                            self.contexts_opened += 1;
 
                             // Continue with the remaining commands
                             self.translate_commands(commands);
@@ -342,6 +363,55 @@ impl EunoiaTranslator {
             // TODO: what about args?
             Sort::Atom(string, ..) => EunoiaType::Name(string.clone()),
 
+            Sort::Function(sorts) => {
+                // TODO: is this correct?
+                assert!(sorts.len() >= 2,);
+
+                let return_sort;
+
+                match sorts.last() {
+                    Some(term) => {
+                        match (*term).deref() {
+                            Term::Sort(sort) => {
+                                return_sort = EunoiaTranslator::translate_sort(sort);
+                            }
+
+                            _ => {
+                                // TODO: is this correct?
+                                panic!();
+                            }
+                        }
+                    }
+
+                    None => {
+                        // TODO: is this correct?
+                        panic!();
+                    }
+                };
+
+                let mut sorts_params = Vec::new();
+
+                for (pos, rc_sort) in sorts.iter().enumerate() {
+                    if pos < sorts.len() - 1 {
+                        match rc_sort.deref() {
+                            Term::Sort(sort) => {
+                                sorts_params.push(EunoiaTranslator::translate_sort(sort));
+                            }
+
+                            _ => {
+                                // TODO: is this correct?
+                                panic!();
+                            }
+                        }
+                    }
+                }
+
+                // TODO: no attrs?
+                EunoiaType::Fun(vec![], sorts_params, Box::new(return_sort))
+            }
+
+            Sort::Bool => EunoiaType::Bool,
+
             _ => {
                 EunoiaType::Real
                 // TODO:
@@ -374,8 +444,6 @@ impl EunoiaTranslator {
         proof_iter: &ProofIter<'_>,
     ) {
         let mut alethe_premises: Vec<EunoiaTerm> = Vec::new();
-        // Add contextual premises.
-        alethe_premises.extend_from_slice(&self.contextual_premises);
         // Add remaining premises, actually present in the original step command.
         alethe_premises.extend(
             premises
@@ -403,12 +471,52 @@ impl EunoiaTranslator {
             eunoia_arguments.push(self.translate_proof_arg(arg));
         });
 
+        // TODO: develop some generic programmatic way to deal with each rule's
+        // semantics (as explained in theory.rs) instead of this
         match rule {
             "let" => {
+                // TODO: do not hard-code this string
+                eunoia_arguments.push(EunoiaTerm::Id("context".to_owned()));
+
+                // Extract lhs and rhs
+                let (lhs, rhs) = AletheTheory::extract_eq_lhs_rhs(&conclusion);
+                eunoia_arguments.push(lhs);
+                eunoia_arguments.push(rhs);
+
                 self.eunoia_proof.push(EunoiaCommand::StepPop {
                     name: id.to_owned(),
                     conclusion_clause: Some(conclusion),
                     rule: self.alethe_signature.let_rule.clone(),
+                    premises: EunoiaList { list: alethe_premises },
+                    arguments: EunoiaList { list: eunoia_arguments },
+                });
+            }
+
+            "refl" => {
+                // TODO: do not hard-code this string
+                eunoia_arguments.push(EunoiaTerm::Id("context".to_owned()));
+
+                // Extract lhs and rhs
+                let (lhs, rhs) = AletheTheory::extract_eq_lhs_rhs(&conclusion);
+
+                eunoia_arguments.push(lhs);
+
+                eunoia_arguments.push(rhs);
+
+                self.eunoia_proof.push(EunoiaCommand::Step {
+                    name: id.to_owned(),
+                    conclusion_clause: Some(conclusion),
+                    rule: self.alethe_signature.refl.clone(),
+                    premises: EunoiaList { list: alethe_premises },
+                    arguments: EunoiaList { list: eunoia_arguments },
+                });
+            }
+
+            "equiv_pos2" => {
+                self.eunoia_proof.push(EunoiaCommand::Step {
+                    name: id.to_owned(),
+                    conclusion_clause: Some(conclusion),
+                    rule: self.alethe_signature.equiv_pos2.clone(),
                     premises: EunoiaList { list: alethe_premises },
                     arguments: EunoiaList { list: eunoia_arguments },
                 });
@@ -432,18 +540,19 @@ impl EunoiaTranslator {
         let ProblemPrelude {
             sort_declarations,
             function_declarations,
-            logic,
+            ..
         } = prelude;
 
         let mut eunoia_prelude = Vec::new();
 
-        match logic {
-            Some(logic_name) => {
-                eunoia_prelude.push(EunoiaCommand::SetLogic { name: logic_name.clone() });
-            }
+        // TODO: ethos does not accept set-logics
+        // match logic {
+        //     Some(logic_name) => {
+        //         eunoia_prelude.push(EunoiaCommand::SetLogic { name: logic_name.clone() });
+        //     }
 
-            None => {}
-        }
+        //     None => {}
+        // }
 
         sort_declarations.iter().for_each(|pair| {
             eunoia_prelude.push(EunoiaCommand::DeclareType {
