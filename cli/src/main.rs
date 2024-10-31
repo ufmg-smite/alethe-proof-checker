@@ -663,7 +663,6 @@ fn translate_command(options: TranslateCommandOptions) -> CliResult<()> {
     .map_err(carcara::Error::from)?;
 
     let node = ast::ProofNode::from_commands(alethe_proof.commands);
-
     let mut translator = carcara::translation::eunoia::EunoiaTranslator::new();
     let eunoia_prelude = translator.translate_problem_prelude(&alethe_problem);
     let eunoia_proof = translator.translate(&node);
@@ -686,9 +685,9 @@ fn translate_command(options: TranslateCommandOptions) -> CliResult<()> {
     // TODO: do not hard-code this in here
     // TODO: fix where to include these depedencies
     // Include Alethe's mechanization in Eunoia
-    println!("(include \"Alethe.eo\")");
-    println!("(include \"theory.eo\")");
-    println!("(include \"programs.eo\")");
+    println!("(include \"../alethe_signature/Alethe.eo\")");
+    println!("(include \"../alethe_signature/theory.eo\")");
+    println!("(include \"../alethe_signature/programs.eo\")");
     println!("{}", std::str::from_utf8(&buf_prelude).unwrap());
     println!("{}", std::str::from_utf8(&buf_proof).unwrap());
 

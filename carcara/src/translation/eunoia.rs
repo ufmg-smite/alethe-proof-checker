@@ -168,32 +168,6 @@ impl EunoiaTranslator {
                                 and_params,
                             ));
 
-                            // if contexts_opened == 0 {
-                            //     // (define ctx0 () true)
-                            //     self.eunoia_proof.push(EunoiaCommand::Define {
-                            //         name: context_name.clone(), // TODO: performance?
-                            //         typed_params: EunoiaList { list: vec![] },
-                            //         term: EunoiaTerm::True,
-                            //         attrs: Vec::new(),
-                            //     });
-
-                            //     // (assume context ctx0)
-                            //     self.eunoia_proof.push(EunoiaCommand::Assume {
-                            //         // TODO: do not hard-code this string
-                            //         name: String::from("context"),
-                            //         term: EunoiaTerm::Id(context_name.clone()),
-                            //     });
-                            // }
-
-                            // // Add contextual premises.
-                            //
-                            // self.contextual_premises
-                            //     .push(EunoiaTerm::Id("context".to_owned()));
-
-                            // // Define and open a new context
-                            // // (define ctx1 () (@ctx ((x S)) (and (= x b) ctx0)))
-                            // // (assume-push context ctx1)
-                            //
                             // Define and open a new context
                             // (define ctxn () (@ctx ...))
                             // TODO: do not hard-code this string
@@ -324,10 +298,18 @@ impl EunoiaTranslator {
     fn translate_operator(operator: Operator) -> Symbol {
         match operator {
             // TODO: put this into theory.rs
-            // Boolean operators.
+            // Logic
+            Operator::And => String::from("and"),
+
+            Operator::Or => String::from("or"),
+
             Operator::Xor => String::from("xor"),
 
             Operator::Not => String::from("not"),
+
+            Operator::Implies => String::from("=>"),
+
+            Operator::Ite => String::from("ite"),
 
             // Order / Comparison.
             Operator::Equals => String::from("="),
@@ -339,6 +321,19 @@ impl EunoiaTranslator {
             Operator::LessThan => String::from("<"),
 
             Operator::LessEq => String::from("<="),
+
+            Operator::Distinct => String::from("distinct"),
+
+            // Arithmetic
+            Operator::Add => String::from("+"),
+
+            Operator::Sub => String::from("-"),
+
+            Operator::Mult => String::from("*"),
+
+            Operator::IntDiv => String::from("div"),
+
+            Operator::RealDiv => String::from("/"),
 
             _ => String::from("not"),
         }

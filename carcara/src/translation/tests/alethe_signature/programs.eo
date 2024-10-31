@@ -1,0 +1,36 @@
+(include "./theory.eo")
+
+; Removes the top @cl if any
+(program from_cl ((T Bool))
+    (Bool) Bool
+    (
+        ((from_cl (@cl T)) T)
+        ((from_cl T) T)
+    )
+)
+
+; Add a @cl if there is none
+(program to_cl ((T Bool))
+    (Bool) Bool
+    (
+        ((to_cl (@cl T)) (@cl T))
+        ((to_cl T) (@cl T))
+    )
+)
+
+;TODO
+(program contains ((inList Bool) (phi Bool))
+  (Bool Bool) Bool
+  (
+   ((contains inList phi) true)
+  )
+)
+
+;TODO true if CL2 is a permuation of CL1
+(program clEqual ((CL1 Bool) (CL2 Bool))
+  (Bool Bool) Bool
+  (
+   ((clEqual CL1 CL2) true)
+  )
+)
+

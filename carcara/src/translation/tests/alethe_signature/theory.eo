@@ -1,0 +1,176 @@
+; -----------
+;   Builtin
+; -----------
+
+; The famous Alethe cl
+(declare-const @cl (-> Bool Bool Bool) :right-assoc-nil false)
+
+(declare-const ite (-> (! Type :var A :implicit) Bool A A A))
+(declare-const not (-> Bool Bool))
+(declare-const or (-> Bool Bool Bool) :right-assoc-nil false)
+(declare-const and (-> Bool Bool Bool) :right-assoc-nil true)
+(declare-const => (-> Bool Bool Bool) :right-assoc)
+(declare-const xor (-> Bool Bool Bool) :left-assoc)
+(declare-const = (-> (! Type :var A :implicit) A A Bool) :chainable and)
+(declare-const distinct (-> (! Type :var A :implicit) A A Bool) :pairwise and)
+
+; ---------------------------
+;   Int and Real Arithmetic
+; ---------------------------
+
+(declare-type Int ())
+(declare-type Real ())
+
+(declare-consts <numeral> Int)
+(declare-consts <rational> Real)
+; TODO: to solve weird behavior with decimal numbers beings translated into
+; rational, during parsing
+(declare-consts <decimal> Real)
+
+; NOTE: Arithmetic here is handled in the same way as it is handled
+; for cvc5: Real and Int can be mixed, and the return type of arithmetic
+; operators the Real, except for operations on Int only.  This could be
+; made stronger, since Alethe does not mix those types.
+
+; arith_typeunion
+;   @param x a type
+;   @param y a Type
+;   @return the "union" of x and y.
+; The returned type is the type of the result of mixed arithmetic operators taking arguments x and y.
+(program arith_typeunion ()
+    (Type Type) Type
+    (
+      ((arith_typeunion Int Int) Int)
+      ((arith_typeunion Real Real) Real)
+      ((arith_typeunion Real Int) Real)
+      ((arith_typeunion Int Real) Real)
+    )
+)
+
+; is_arith_type
+;   @param x
+;   @returns true if x is Int or Real
+(program is_arith_type ()
+    (Type) Bool
+    (
+      ((is_arith_type Int) true)
+      ((is_arith_type Real) true)
+    )
+)
+
+; Core operators of arithmetic, which are used in mixed Int/Real arithmetic.
+; Using integer nil terminators ensures typing is accurate.
+(declare-const + (-> (! Type :var T :implicit) (! Type :var U :implicit)
+                     T U (arith_typeunion T U)) :right-assoc-nil 0)
+(declare-const - (-> (! Type :var T :implicit) (! Type :var U :implicit)
+                     T U (arith_typeunion T U)) :left-assoc)
+(declare-const * (-> (! Type :var T :implicit) (! Type :var U :implicit)
+                     T U (arith_typeunion T U)) :right-assoc-nil 1)
+(declare-const / (-> (! Type :var T :implicit) (! Type :var U :implicit)
+                     T U
+                     (! Real :requires ((is_arith_type T) true)
+                             :requires ((is_arith_type U) true))) :left-assoc)
+(declare-const div (-> Int Int Int) :left-assoc)
+(declare-const mod (-> Int Int Int))
+
+(declare-const < (-> (! Type :var T :implicit) (! Type :var U :implicit)
+                     (! T :requires ((is_arith_type T) true))
+                     (! U :requires ((is_arith_type U) true))
+                     Bool)
+                     :chainable and)
+(declare-const <= (-> (! Type :var T :implicit) (! Type :var U :implicit)
+                      (! T :requires ((is_arith_type T) true))
+                      (! U :requires ((is_arith_type U) true))
+                      Bool)
+                      :chainable and)
+(declare-const > (-> (! Type :var T :implicit) (! Type :var U :implicit)
+                     (! T :requires ((is_arith_type T) true))
+                     (! U :requires ((is_arith_type U) true))
+                     Bool)
+                     :chainable and)
+(declare-const >= (-> (! Type :var T :implicit) (! Type :var U :implicit)
+                      (! T :requires ((is_arith_type T) true))
+                      (! U :requires ((is_arith_type U) true))
+                      Bool)
+                      :chainable and)
+
+; Conversion functions.
+(declare-const to_real (-> (! Type :var T :implicit)
+                           (! T :requires ((is_arith_type T) true))
+                           Real))
+(declare-const to_int (-> (! Type :var T :implicit)
+                          (! T :requires ((is_arith_type T) true))
+                          Int))
+(declare-const is_int (-> (! Type :var T :implicit)
+                          (! T :requires ((is_arith_type T) true))
+                          Bool))
+(declare-const abs (-> (! Type :var T :implicit)
+                       (! T :requires ((is_arith_type T) true))
+                       T))
+
+; Currently unary negation cannot use overload.
+(declare-const - (-> (! Type :var T :implicit)
+                     (! T :requires ((is_arith_type T) true))
+                     T))
+
+; ---------------
+;   Quantifiers
+; ---------------
+
+(declare-type @VarList ())
+(declare-const @varlist.nil @VarList)
+(declare-const @varlist (-> (! Type :var T :implicit) T @VarList @VarList) :right-assoc-nil @varlist.nil)
+
+(declare-const forall (-> @VarList Bool Bool) :binder @varlist)
+(declare-const exists (-> @VarList Bool Bool) :binder @varlist)
+(declare-const choice (-> (! Type :var T :implicit) @VarList T Bool T) :binder @varlist)
+
+
+; program: get_lambda_type
+; args:
+; - (x @VarList) : TODO: seems that it shouldn't be a parameter
+; - (xs @VarList :list) 
+; - (B Type)
+; return: the expected function type, with domain in xs and return type B.
+(program get_lambda_type ((x @VarList) (xs @VarList :list) (B Type))
+  (@VarList Type) Type
+  (
+    ((get_lambda_type (@varlist x xs) B) (-> (eo::typeof x) (get_lambda_type xs B)))
+    ((get_lambda_type @varlist.nil B)    B)
+  )
+)
+
+(declare-const @let (-> (! Type :var B :implicit)
+                        (! @VarList :var L)
+                        B
+                        (get_lambda_type L B)) :binder @varlist)
+
+
+; ------------
+;   Contexts
+; ------------
+
+(declare-const @ctx (-> (! @VarList :var L)
+                        Bool
+                        Bool) :binder @varlist)
+
+; constant: @var
+; type: (-> (! Type :var B :implicit)
+;           (! @VarList :var L)
+;           B
+;           B)
+; note: >
+; Used to bind variables in a context
+(declare-const @var (-> (! Type :var B :implicit)
+                        (! @VarList :var L)
+                        B
+                        B) :binder @varlist)
+
+; Checks that the context ctx is an extension of old_ctx.
+;TODO
+(program context_extended ((ctx Bool) (old_ctx Bool))
+    (Bool Bool) Bool
+    (
+        ((context_extended ctx old_ctx) true)
+    )
+ )

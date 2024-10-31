@@ -1,0 +1,1385 @@
+(include "./theory.eo")
+(include "./programs.eo")
+
+; Rule: assume is native
+
+; Note: The hole here does not allow for args or premises.
+(declare-rule hole ((Ls Bool :list))
+  :args ((@cl Ls))
+  :conclusion (@cl Ls)
+)
+
+(declare-rule true ()
+  :args ((@cl true))
+  :conclusion (@cl true)
+)
+
+(declare-rule false ()
+  :args ((@cl (not false)))
+  :conclusion (@cl (not false))
+)
+
+(program check_not_not ((phi Bool))
+    (Bool) Bool
+    (
+    ((check_not_not (@cl (not (not (not phi))) phi)) true)
+    ((check_not_not (@cl phi (not (not (not phi))))) true)
+    )
+)
+(declare-rule not_not ((CL Bool))
+  :args (CL)
+  :requires (((check_not_not CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_resolution ((Cs Bool) (CL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_resolution Cs CL) true)
+  )
+)
+
+;TRUST
+(declare-rule th_resolution ((Cs Bool) (CL Bool))
+  :premise-list Cs and
+  :args (CL)
+  :requires (((check_resolution Cs CL) true))
+  :conclusion CL
+)
+
+;TRUST
+(declare-rule resolution ((Cs Bool))
+  :premise-list Cs and
+  :requires (((check_resolution Cs eo::conclusion) true))
+  :conclusion-given
+)
+
+;TODO
+(program check_tautology ((CL1 Bool))
+  (Bool) Bool
+  (
+   ((check_tautology CL1) true)
+  )
+)
+
+;TRUST
+(declare-rule tautology ((CL1 Bool))
+  :premises (CL1)
+  :args ((@cl true))
+  :requires (((check_tautology CL1) true))
+  :conclusion (@cl true)
+)
+
+;TODO
+(program check_contraction ((CL1 Bool) (CL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_contraction CL1 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule contraction ((CL1 Bool) (CL Bool))
+  :premises (CL1)
+  :args (CL)
+  :requires (((check_contraction CL1 CL) true))
+  :conclusion CL
+)
+
+;TODO: test if the list here works well
+(declare-rule subproof ((F Bool) (G Bool :list))
+  :assumption F ;has no cl!
+  :premises (G)
+  :args ((@cl (not F) G))
+  :conclusion (@cl (not F) G)
+)
+
+;TODO
+; From "The Alethe Proof Format":
+; "Checking the validity of this clause amounts to checking the unsatisfiability 
+; of the system of linear equations 𝜑1, 𝜑2, … , 𝜑𝑛. The annotation of an 
+; la_generic step contains a coefficient for each (in)equality. The result of 
+; forming the linear combination of the literals with the coefficients is a trivial 
+; inequality between constants".
+(program check_la_generic ((coeffs Real) (CL Bool))
+  (Real Bool) Bool
+  (
+   ((check_la_generic coeffs CL) true)
+  )
+)
+
+; NOTE: The coefficients are one single argument.  This means they must be
+;       be wrapped in a single function call using an n-ary function.  See
+;       the example `small.smt3`.
+;TRUST
+(declare-rule la_generic ((coeffs Real))
+  :args (coeffs)
+  :requires (((check_la_generic coeffs eo::conclusion) true))
+  :conclusion-given
+)
+
+;TODO
+(program check_lia_generic ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_lia_generic CL) true)
+  )
+)
+
+;TRUST
+(declare-rule lia_generic ((CL Bool))
+  :args (CL)
+  :requires (((check_lia_generic CL) true))
+  :conclusion CL
+)
+
+(declare-rule la_disequality ((t1 Real) (t2 Real))
+  :args ((@cl (or (= t1 t2) (not (<= t1 t2)) (not (<= t2 t1)))))
+  :conclusion (@cl (or (= t1 t2) (not (<= t1 t2)) (not (<= t2 t1))))
+)
+
+(declare-rule la_totality ((t1 Real) (t2 Real))
+  :args ((@cl (or (<= t1 t2) (<= t2 t1))))
+  :conclusion (@cl (or (<= t1 t2) (<= t2 t1)))
+)
+
+;TODO
+(program check_la_tautology ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_la_tautology CL) true)
+  )
+)
+
+;TRUST
+(declare-rule la_tautology ((CL Bool))
+  :args (CL)
+  :requires (((check_la_tautology CL) true))
+  :conclusion CL
+)
+
+; NOTE: Rules like `bind` can have multiple forms: without and with
+; @var.  In the first case the bind rule is
+;                @var xs. φ = @var ys. φ'
+;              --­­------­­­­­------------­ bind
+;                   ∀ xs. φ = ∀ ys. φ'
+; This means that the variable that are free in the premise get bound by
+; a @var.  However, since `bind` and other context-extending steps can
+; be nested, it could also have the form
+;              @var xs₁ ∪ xs₂. φ = @var ys₁ ∪ ys₂. φ'
+;        --­­­­­­­--------------------------------­ bind
+;             @var xs₁. ∀ xs₂. φ = @var ys₁. ∀ ys₂. φ'
+; In situations where `bind` is combined with rules like `sko_ex`, the
+; @var could occur on only one side.
+; Since this signature would check the binders in the side condition,
+; the binders are invisible here.
+; This affects the rules `bind`, `sko_ex`, `sko_forall`, `let`,
+; and `onepoint`.
+
+;TODO
+(program check_bind ((ctx Bool) (T Type) (l T) (r T) (l1 T) (r1 T))
+  (Bool T T T T) Bool
+  (
+   ((check_bind ctx l r l1 r1) true)
+  )
+)
+
+;TRUST
+(declare-rule bind ((ctx Bool) (old_ctx Bool) (T Type) (l T) (r T) (l1 T) (r1 T))
+  :assumption ctx
+  :premises (old_ctx (@cl (= l1 r1))) ; this is never a direct assumption
+  :args ((@cl (= l r)))
+  :requires (((context_extended ctx old_ctx) true) ((check_bind ctx l r l1 r1) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_sko_ex ((ctx Bool) (T Type) (l T) (r T) (l1 T) (r1 T))
+  (Bool T T T T) Bool
+  (
+   ((check_sko_ex ctx l r l1 r1) true)
+  )
+)
+
+;TRUST
+(declare-rule sko_ex ((ctx Bool) (old_ctx Bool) (T Type) (l T) (r T) (l1 T) (r1 T))
+  :assumption ctx
+  :premises (old_ctx (@cl (= l1 r1)))
+  :args ((@cl (= l r)))
+  :requires (((context_extended ctx old_ctx) true) ((check_sko_ex ctx l r l1 r1) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_sko_forall ((ctx Bool) (T Type) (l T) (r T) (l1 T) (r1 T))
+  (Bool T T T T) Bool
+  (
+   ((check_sko_forall ctx l r l1 r1) true)
+  )
+)
+
+;TRUST
+(declare-rule sko_forall ((ctx Bool) (old_ctx Bool) (T Type) (l T) (r T) (l1 T) (r1 T))
+  :assumption ctx
+  :premises (old_ctx (@cl (= l1 r1)))
+  :args ((@cl (= l r)))
+  :requires (((context_extended ctx old_ctx) true) ((check_sko_forall ctx l r l1 r1) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_forall_inst ((xs @VarList) (P Bool) (PP Bool))
+  (@VarList Bool Bool) Bool
+  (
+   ((check_forall_inst xs P PP) true)
+  )
+)
+
+;TRUST
+(declare-rule forall_inst ((P Bool) (PP Bool) (xs @VarList))
+  :args ((@cl (or (not (forall xs P) PP))))
+  :requires (((check_forall_inst xs P PP) true))
+  :conclusion (@cl (or (not (forall xs P) PP)))
+)
+
+;TODO: why is type T not mentioned in the body of check_refl?
+(program check_refl ((ctx Bool) (T Type) (t1 T) (t2 T) (conclusion Bool))
+  (Bool T T Bool) Bool
+  (
+   ((check_refl ctx t1 t2 conclusion) true)
+  )
+)
+
+;TRUST
+(declare-rule refl ((ctx Bool) (T Type) (t1 T) (t2 T))
+  :args (ctx t1 t2)
+  ; TODO: I am forced to 
+  ;; :args ((@cl (= t1 t2)))
+  :requires (((check_refl ctx t1 t2 eo::conclusion) true))
+  :conclusion-given
+)
+
+(program last_eq_right ((T Type) (t1 T) (t2 T) (eqs Bool))
+  (Bool) Bool
+  (; TODO: are they always clauses? (seems that it is not the
+   ; case if the premises where just "assume"s)
+    ;; ((last_eq_right (and (@cl (= t1 t2)) true)) t2)
+    ;; ((last_eq_right (and (@cl (= t1 t2)) eqs)) (last_eq_right eqs))
+    ((last_eq_right (and (= t1 t2) true)) t2)
+    ((last_eq_right (and (= t1 t2) eqs)) (last_eq_right eqs))
+  )
+)
+
+(program make_trans ((T Type) (t1 T) (t2 T) (eqs Bool :list))
+  (Bool) Bool
+  (; TODO: are they always clauses?
+   ;; ((make_trans (and (@cl (= t1 t2) true))) (= t1 t2))
+   ;; ((make_trans (and (@cl (= t1 t2) eqs))) (= t1 (last_eq_right eqs)))
+   ((make_trans (and (= t1 t2) true)) (= t1 t2))
+   ((make_trans (and (= t1 t2) eqs)) (= t1 (last_eq_right eqs)))
+
+  )
+)
+
+;TODO what about scopes here? can a premise come from an outers scope
+;TODO: implement mkTrans
+(declare-rule trans ((Eqs Bool))
+  :premise-list Eqs and
+  ;; :args ((@cl (make_trans Eqs)))
+  ; TODO: is this correct?
+  ;; (((check_cong Eqs eo::conclusion) true))
+  :requires (((@cl (make_trans Eqs)) eo::conclusion))
+  ;; :conclusion (@cl (make_trans Eqs))
+  :conclusion-given
+)
+
+;TODO
+(program check_cong ((Eqs Bool) (CEq Bool))
+  (Bool Bool) Bool
+  (
+   ((check_cong Eqs CEq) true)
+  )
+)
+
+;TRUST
+;; (declare-rule cong ((Eqs Bool) (CEq Bool))
+(declare-rule cong ((Eqs Bool))
+  :premise-list Eqs and
+  ;; :args ((@cl CEq)) ; CEq is an equality
+  :requires (((check_cong Eqs eo::conclusion) true))
+  :conclusion-given
+)
+
+(declare-rule eq_reflexive ((T Type) (t T))
+  :args ((@cl (= t t)))
+  :conclusion (@cl (= t t))
+)
+
+;TODO
+(program check_eq_transitive ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_eq_transitive CL) true)
+  )
+)
+
+;TRUST
+(declare-rule eq_transitive ((CL Bool))
+  :args (CL)
+  :requires (((check_eq_transitive CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_eq_congruent ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_eq_congruent CL) true)
+  )
+)
+
+;TRUST
+(declare-rule eq_congruent ((CL Bool))
+  :args (CL)
+  :requires (((check_eq_congruent CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_eq_congruent_pred ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_eq_congruent_pred CL) true)
+  )
+)
+
+;TRUST
+(declare-rule eq_congruent_pred ((CL Bool))
+  :args (CL)
+  :requires (((check_eq_congruent_pred CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_qnt_cnf ((phi Bool) (phiP Bool) (xs @VarList) (xsP @VarList))
+  (@VarList Bool @VarList Bool) Bool
+  (
+   ((check_qnt_cnf xs phi xsP phiP) true)
+  )
+)
+
+;TRUST
+(declare-rule qnt_cnf ((phi Bool) (phiP Bool) (xs @VarList) (xsP @VarList))
+  :args ((@cl (or (not (forall xs phi)) (forall xsP phiP))))
+  :requires (((check_qnt_cnf xs phi xsP phiP) true))
+  :conclusion (@cl (or (not (forall xs phi)) (forall xsP phiP)))
+)
+
+; TODO: this overloads PandP
+;TRUST
+(declare-rule and ((CL Bool) (phi Bool))
+  :premises (CL)
+  :args ((@cl phi))
+  :requires (((contains (from_cl CL) phi) true))
+  :conclusion (@cl phi)
+)
+
+;TODO
+(program check_not_or ((ors Bool) (phi Bool))
+  (Bool Bool) Bool
+  (
+   ((check_not_or (@cl (not ors)) phi) (contains ors phi))
+  )
+)
+
+;TRUST
+(declare-rule not_or ((CS Bool) (phi Bool))
+  :premises (CS)
+  :args ((@cl (not phi)))
+  :requires (((check_not_or (to_cl CS) phi) true))
+  :conclusion (@cl (not phi))
+)
+
+;TODO
+(program check_or ((ors Bool) (clause Bool))
+  (Bool Bool) Bool
+  (
+   ((check_or ors clause) true)
+  )
+)
+
+;TRUST
+(declare-rule or ((CS Bool) (CP Bool) (CNP Bool :list))
+  :premises (CS)
+  :args ((@cl CP CNP))
+  :requires (((check_or (from_cl CS) (@cl CP CNP)) true))
+  :conclusion (@cl CP CNP)
+)
+
+;TODO: test this. It is likely wrong.
+(program transform_not_and ((l Bool) (ls Bool :list))
+  (Bool) Bool
+  (
+   ((transform_not_and (and l ls)) (@cl (not l) (transform_not_and ls)))
+   ((transform_not_and true) false)
+  )
+)
+
+;TODO implement transform_not_and
+(program check_not_and ((C Bool) (CN Bool :list) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_not_and (@cl (not (and C CN))) refCL)
+     (clEqual (transform_not_and (and C CN)) refCL)
+   )
+   ((check_not_and (not (and C CN)) refCL)
+     (clEqual (transform_not_and (and C CN)) refCL)
+   )
+  )
+)
+
+(declare-rule not_and ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_not_and CL refCL) true))
+  :conclusion refCL
+)
+
+(program check_xor1 ((phi1 Bool) (phi2 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_xor1 (@cl (xor phi1 phi2)) refCL)
+     (clEqual (@cl phi1 phi2) refCL)
+   )
+   ((check_xor1 (xor phi1 phi2) refCL)
+     (clEqual (@cl phi1 phi2) refCL)
+   )
+  )
+)
+
+(declare-rule xor1 ((CL Bool))
+  :premises (CL)
+  :requires (((check_xor1 CL eo::conclusion) true))
+  :conclusion-given
+)
+
+(program check_xor2 ((phi1 Bool) (phi2 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_xor2 (@cl (xor phi1 phi2)) refCL)
+     (clEqual (@cl (not phi1) (not phi2)) refCL)
+   )
+   ((check_xor2 (xor phi1 phi2) refCL)
+     (clEqual (@cl (not phi1) (not phi2)) refCL)
+   )
+  )
+)
+
+(declare-rule xor2 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_xor2 CL refCL) true))
+  :conclusion refCL
+)
+
+(program check_not_xor1 ((phi1 Bool) (phi2 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_not_xor1 (@cl (xor phi1 phi2)) refCL)
+     (clEqual (@cl phi1 (not phi2)) refCL)
+   )
+   ((check_not_xor1 (xor phi1 phi2) refCL)
+     (clEqual (@cl phi1 (not phi2)) refCL)
+   )
+  )
+)
+
+(declare-rule not_xor1 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_not_xor1 CL refCL) true))
+  :conclusion refCL
+)
+
+
+(program check_not_xor2 ((phi1 Bool) (phi2 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_not_xor2 (@cl (xor phi1 phi2)) refCL)
+     (clEqual (@cl (not phi1) phi2) refCL)
+   )
+   ((check_not_xor2 (xor phi1 phi2) refCL)
+     (clEqual (@cl (not phi1) phi2) refCL)
+   )
+  )
+)
+
+(declare-rule not_xor2 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_not_xor2 CL refCL) true))
+  :conclusion refCL
+)
+
+(program check_implies ((phi1 Bool) (phi2 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_implies (@cl (=> phi1 phi2)) refCL)
+     (clEqual (@cl (not phi1) phi2) refCL)
+   )
+   ((check_implies (=> phi1 phi2) refCL)
+     (clEqual (@cl (not phi1) phi2) refCL)
+   )
+  )
+)
+
+(declare-rule implies ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_implies CL refCL) true))
+  :conclusion refCL
+)
+
+(program check_not_implies1 ((phi1 Bool) (phi2 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_not_implies1 (@cl (not (=> phi1 phi2))) refCL)
+     (clEqual (@cl phi1) refCL)
+   )
+   ((check_not_implies1 (not (=> phi1 phi2)) refCL)
+     (clEqual (@cl phi1) refCL)
+   )
+  )
+)
+
+(declare-rule not_implies1 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_not_implies1 CL refCL) true))
+  :conclusion refCL
+)
+
+(program check_not_implies2 ((phi1 Bool) (phi2 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_not_implies2 (@cl (not (=> phi1 phi2))) refCL)
+     (clEqual (@cl phi1) refCL)
+   )
+   ((check_not_implies2 (not (=> phi1 phi2)) refCL)
+     (clEqual (@cl phi1) refCL)
+   )
+  )
+)
+
+(declare-rule not_implies2 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_not_implies2 CL refCL) true))
+  :conclusion refCL
+)
+
+(program check_equiv1 ((phi1 Bool) (phi2 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_equiv1 (@cl (= phi1 phi2)) refCL)
+     (clEqual (@cl (not phi1) phi2) refCL)
+   )
+   ((check_equiv1 (= phi1 phi2) refCL)
+     (clEqual (@cl (not phi1) phi2) refCL)
+   )
+  )
+)
+
+(declare-rule equiv1 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_equiv1 CL refCL) true))
+  :conclusion refCL
+)
+
+(program check_equiv2 ((phi1 Bool) (phi2 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_equiv2 (@cl (= phi1 phi2)) refCL)
+     (clEqual (@cl phi1 (not phi2)) refCL)
+   )
+   ((check_equiv2 (= phi1 phi2) refCL)
+     (clEqual (@cl phi1 (not phi2)) refCL)
+   )
+  )
+)
+
+(declare-rule equiv2 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_equiv2 CL refCL) true))
+  :conclusion refCL
+)
+
+(program check_not_equiv1 ((phi1 Bool) (phi2 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_not_equiv1 (@cl (not (= phi1 phi2))) refCL)
+     (clEqual (@cl phi1 phi2) refCL)
+   )
+   ((check_not_equiv1 (not (= phi1 phi2)) refCL)
+     (clEqual (@cl phi1 phi2) refCL)
+   )
+  )
+)
+
+(declare-rule not_equiv1 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_not_equiv1 CL refCL) true))
+  :conclusion refCL
+)
+
+;TODO
+(program check_and_pos ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_and_pos CL) true)
+  )
+)
+
+;TRUST
+(declare-rule and_pos ((CL Bool))
+  :args (CL)
+  :requires (((check_and_pos CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_and_neg ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_and_neg CL) true)
+  )
+)
+
+;TRUST
+(declare-rule and_neg ((CL Bool))
+  :args (CL)
+  :requires (((check_and_neg CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_or_pos ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_or_pos CL) true)
+  )
+)
+
+;TRUST
+(declare-rule or_pos ((CL Bool))
+  :args (CL)
+  :requires (((check_or_pos CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_or_neg ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_or_neg CL) true)
+  )
+)
+
+;TRUST
+(declare-rule or_neg ((CL Bool))
+  :args (CL)
+  :requires (((check_or_neg CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_xor_pos1 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_xor_pos1 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule xor_pos1 ((CL Bool))
+  :args (CL)
+  :requires (((check_xor_pos1 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_xor_pos2 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_xor_pos2 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule xor_pos2 ((CL Bool))
+  :args (CL)
+  :requires (((check_xor_pos2 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_xor_neg1 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_xor_neg1 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule xor_neg1 ((CL Bool))
+  :args (CL)
+  :requires (((check_xor_neg1 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_xor_neg2 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_xor_neg2 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule xor_neg2 ((CL Bool))
+  :args (CL)
+  :requires (((check_xor_neg2 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_implies_pos ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_implies_pos CL) true)
+  )
+)
+
+;TRUST
+(declare-rule implies_pos ((CL Bool))
+  :args (CL)
+  :requires (((check_implies_pos CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_implies_neg1 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_implies_neg1 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule implies_neg1 ((CL Bool))
+  :args (CL)
+  :requires (((check_implies_neg1 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_implies_neg2 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_implies_neg2 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule implies_neg2 ((CL Bool))
+  :args (CL)
+  :requires (((check_implies_neg2 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_equiv_pos1 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_equiv_pos1 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule equiv_pos1 ((CL Bool))
+  :args (CL)
+  :requires (((check_equiv_pos1 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_equiv_pos2 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_equiv_pos2 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule equiv_pos2 ()
+  :requires (((check_equiv_pos2 eo::conclusion) true))
+  :conclusion-given
+)
+
+;TODO
+(program check_equiv_neg1 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_equiv_neg1 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule equiv_neg1 ((CL Bool))
+  :args (CL)
+  :requires (((check_equiv_neg1 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_equiv_neg2 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_equiv_neg2 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule equiv_neg2 ((CL Bool))
+  :args (CL)
+  :requires (((check_equiv_neg2 CL) true))
+  :conclusion CL
+)
+
+(program check_ite1 ((phi1 Bool) (phi2 Bool) (phi3 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_ite1 (@cl (ite phi1 phi2 phi3)) refCL)
+     (clEqual (@cl phi1 phi3) refCL)
+   )
+   ((check_ite1 (ite phi1 phi2 phi3) refCL)
+     (clEqual (@cl phi1 phi3) refCL)
+   )
+  )
+)
+
+(declare-rule ite1 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_ite1 CL refCL) true))
+  :conclusion refCL
+)
+
+(program check_ite2 ((phi1 Bool) (phi2 Bool) (phi3 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_ite2 (@cl (ite phi1 phi2 phi3)) refCL)
+     (clEqual (@cl (not phi1) phi2) refCL)
+   )
+   ((check_ite2 (ite phi1 phi2 phi3) refCL)
+     (clEqual (@cl (not phi1) phi2) refCL)
+   )
+  )
+)
+
+(declare-rule ite2 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_ite2 CL refCL) true))
+  :conclusion refCL
+)
+
+;TODO
+(program check_ite_pos1 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_ite_pos1 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule ite_pos1 ((CL Bool))
+  :args (CL)
+  :requires (((check_ite_pos1 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_ite_pos2 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_ite_pos2 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule ite_pos2 ((CL Bool))
+  :args (CL)
+  :requires (((check_ite_pos2 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_ite_neg1 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_ite_neg1 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule ite_neg1 ((CL Bool))
+  :args (CL)
+  :requires (((check_ite_neg1 CL) true))
+  :conclusion CL
+)
+
+;TODO
+(program check_ite_neg2 ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_ite_neg2 CL) true)
+  )
+)
+
+;TRUST
+(declare-rule ite_neg2 ((CL Bool))
+  :args (CL)
+  :requires (((check_ite_neg2 CL) true))
+  :conclusion CL
+)
+
+(program check_not_ite1 ((phi1 Bool) (phi2 Bool) (phi3 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_not_ite1 (@cl (not (ite phi1 phi2 phi3))) refCL)
+     (clEqual (@cl phi1 (not phi3)) refCL)
+   )
+   ((check_not_ite1 (not (ite phi1 phi2 phi3)) refCL)
+     (clEqual (@cl phi1 (not phi3)) refCL)
+   )
+  )
+)
+
+(declare-rule not_ite1 ((refCL Bool) (CL Bool))
+  :premises (CL)
+  :args (refCL)
+  :requires (((check_not_ite1 CL refCL) true))
+  :conclusion refCL
+)
+
+(program check_not_ite2 ((phi1 Bool) (phi2 Bool) (phi3 Bool) (refCL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_not_ite2 (@cl (not (ite phi1 phi2 phi3))) refCL)
+     (clEqual (@cl (not phi1) (not phi2)) refCL)
+   )
+   ((check_not_ite2 (not (ite phi1 phi2 phi3)) refCL)
+     (clEqual (@cl (not phi1) (not phi2)) refCL)
+   )
+  )
+)
+
+;TODO
+(program check_connective_dev ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_connective_dev l r) true)
+  )
+)
+
+;TRUST
+(declare-rule connective_def ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_connective_dev l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_and_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_and_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule and_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_and_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_or_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_or_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule or_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_or_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_not_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_not_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule not_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_not_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_implies_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_implies_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule implies_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_implies_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_equiv_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_equiv_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule equiv_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_equiv_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_bool_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_bool_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule bool_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_bool_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_ac_simp ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_ac_simp l r) true)
+  )
+)
+
+;TRUST
+(declare-rule ac_simp ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_ac_simp l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_ite_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_ite_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule ite_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_ite_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_qnt_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_qnt_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule qnt_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_qnt_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_onepoint ((ctx Bool) (T Type) (l T) (r T) (l1 T) (r1 T))
+  (Bool T T T T) Bool
+  (
+   ((check_onepoint ctx l r l1 r1) true)
+  )
+)
+
+;TRUST
+(declare-rule onepoint ((ctx Bool) (old_ctx Bool) (T Type) (l T) (r T) (l1 T) (r1 T))
+  :assumption ctx
+  :premises (old_ctx (@cl (= l1 r1)))
+  :args ((@cl (= l r)))
+  :requires (((context_extended ctx old_ctx) true) ((check_onepoint ctx l r l1 r1) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_qnt_join ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_qnt_join l r) true)
+  )
+)
+
+;TRUST
+(declare-rule qnt_join ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_qnt_join l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_qnt_rm_unused ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_qnt_rm_unused l r) true)
+  )
+)
+
+;TRUST
+(declare-rule qnt_rm_unused ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_qnt_rm_unused l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_eq_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_eq_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule eq_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_eq_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_div_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_div_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule div_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_div_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_prod_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_prod_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule prod_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_prod_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_unary_minus_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_unary_minus_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule unary_minus_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_unary_minus_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_minus_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_minus_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule minus_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_minus_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_sum_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_sum_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule sum_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_sum_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_comp_simplify ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_comp_simplify l r) true)
+  )
+)
+
+;TRUST
+(declare-rule comp_simplify ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_comp_simplify l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+; This has to traverse the lets and the premises.  Also has to check the
+; context extension.
+(program check_let ((ctx Bool) (Cs Bool) (l Bool) (r Bool) (conclusion Bool))
+  (Bool Bool Bool Bool Bool) Bool
+  (
+   ((check_let ctx Cs l r (@cl (= l r))) true)
+  )
+)
+
+; rule: let_elim
+; assumption:
+; - ctx: Context from the actual subproof.
+; premise-list:
+; - Cs: Surrounding context 
+; conclusion: >
+;   
+; note: >
+(declare-rule let_elim ((ctx Bool) (Cs Bool) (l Bool) (r Bool))
+  :premise-list Cs and
+  :args (ctx l r)
+  :requires (((check_let ctx Cs l r eo::conclusion) true))
+  :conclusion-given
+)
+
+;TODO
+(program check_distinct_elim ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_distinct_elim l r) true)
+  )
+)
+
+;TRUST
+(declare-rule distinct_elim ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_distinct_elim l r) true))
+  :conclusion (@cl (= l r))
+)
+
+; TODO: other number types. Can the equality be flipped?
+(declare-rule la_rw_eq ((t Real) (u Real))
+  :args ((@cl (= (= t u) (and (<= t u) (<= u t)))))
+  :conclusion (@cl (= (= t u) (and (<= t u) (<= u t))))
+)
+
+;TODO
+(program check_nary_elim ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_nary_elim l r) true)
+  )
+)
+
+;TRUST
+(declare-rule nary_elim ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_nary_elim l r) true))
+  :conclusion (@cl (= l r))
+)
+
+;TODO
+(program check_bfun_elim ((psi Bool) (phi Bool))
+  (Bool Bool) Bool
+  (
+   ((check_bfun_elim (@cl psi) phi) true)
+  )
+)
+
+;TRUST
+(declare-rule bfun_elim ((psi Bool) (phi Bool))
+  :premises (psi)
+  :args ((@cl phi))
+  :requires (((check_bfun_elim (to_cl psi) phi) true))
+  :conclusion (@cl phi)
+)
+
+;TODO
+(program check_ite_intro ((l Bool) (r Bool))
+  (Bool Bool) Bool
+  (
+   ((check_ite_intro l r) true)
+  )
+)
+
+;TRUST
+(declare-rule ite_intro ((l Bool) (r Bool))
+  :args ((@cl (= l r)))
+  :requires (((check_ite_intro l r) true))
+  :conclusion (@cl (= l r))
+)
+
