@@ -3,10 +3,18 @@
 
 ; Rule: assume is native
 
+; TODO: what would the checker do in this case?
+(program check_hole ((conclusion Bool))
+    (Bool) Bool
+    (
+    ((check_hole conclusion) true)
+    )
+)
+
 ; Note: The hole here does not allow for args or premises.
-(declare-rule hole ((Ls Bool :list))
-  :args ((@cl Ls))
-  :conclusion (@cl Ls)
+(declare-rule hole ()
+  :requires (((check_hole eo::conclusion) true))
+  :conclusion-given
 )
 
 (declare-rule true ()
@@ -14,9 +22,15 @@
   :conclusion (@cl true)
 )
 
+(program check_false ((conclusion Bool))
+    (Bool) Bool
+    (
+    ((check_false (@cl (not false))) true)
+    )
+)
 (declare-rule false ()
-  :args ((@cl (not false)))
-  :conclusion (@cl (not false))
+  :requires (((check_false eo::conclusion) true))
+  :conclusion-given
 )
 
 (program check_not_not ((phi Bool))
@@ -264,21 +278,16 @@
   (Bool) Bool
   (; TODO: are they always clauses? (seems that it is not the
    ; case if the premises where just "assume"s)
-    ;; ((last_eq_right (and (@cl (= t1 t2)) true)) t2)
-    ;; ((last_eq_right (and (@cl (= t1 t2)) eqs)) (last_eq_right eqs))
-    ((last_eq_right (and (= t1 t2) true)) t2)
-    ((last_eq_right (and (= t1 t2) eqs)) (last_eq_right eqs))
+    ((last_eq_right (and (@cl (= t1 t2)))) t2)
+    ((last_eq_right (and (@cl (= t1 t2)) eqs)) (last_eq_right eqs))
   )
 )
 
 (program make_trans ((T Type) (t1 T) (t2 T) (eqs Bool :list))
   (Bool) Bool
   (; TODO: are they always clauses?
-   ;; ((make_trans (and (@cl (= t1 t2) true))) (= t1 t2))
-   ;; ((make_trans (and (@cl (= t1 t2) eqs))) (= t1 (last_eq_right eqs)))
-   ((make_trans (and (= t1 t2) true)) (= t1 t2))
-   ((make_trans (and (= t1 t2) eqs)) (= t1 (last_eq_right eqs)))
-
+   ((make_trans (and (@cl (= t1 t2)))) (= t1 t2))
+   ((make_trans (and (@cl (= t1 t2)) eqs)) (= t1 (last_eq_right eqs)))
   )
 )
 
@@ -378,11 +387,11 @@
 
 ; TODO: this overloads PandP
 ;TRUST
-(declare-rule and ((CL Bool) (phi Bool))
+(declare-rule and ((CL Bool) (phi Bool) (index Int))
   :premises (CL)
-  :args ((@cl phi))
-  :requires (((contains (from_cl CL) phi) true))
-  :conclusion (@cl phi)
+  :args (index)
+  :requires (((contains (from_cl CL) eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -412,9 +421,10 @@
 ;TRUST
 (declare-rule or ((CS Bool) (CP Bool) (CNP Bool :list))
   :premises (CS)
-  :args ((@cl CP CNP))
-  :requires (((check_or (from_cl CS) (@cl CP CNP)) true))
-  :conclusion (@cl CP CNP)
+  ;; :args ((@cl CP CNP))
+  :requires (((check_or (from_cl CS) eo::conclusion) true))
+  ;; :conclusion (@cl CP CNP)
+  :conclusion-given 
 )
 
 ;TODO: test this. It is likely wrong.
