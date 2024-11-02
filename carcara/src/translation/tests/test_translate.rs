@@ -86,7 +86,7 @@ fn test_small_example() {
          (step t2 (@cl (<= a 5.0) (> a 5.0)) :rule la_generic :args ( 1.0 1.0 ))\n\
          (assume h2 (not (= b 10.0)))\n\
          (assume h3 (not (<= a 5.0)))\n\
-         (step t3 (@cl) :rule resolution :premises ( t1 t2 h2 h3 ))\n",
+         (step t3 @empty_cl :rule resolution :premises ( t1 t2 h2 h3 ))\n",
         std::str::from_utf8(&buf_proof).unwrap()
     );
 }

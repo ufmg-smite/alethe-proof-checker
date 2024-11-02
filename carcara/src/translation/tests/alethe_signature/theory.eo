@@ -4,6 +4,9 @@
 
 ; The famous Alethe cl
 (declare-const @cl (-> Bool Bool Bool) :right-assoc-nil false)
+; TODO: some better way to deal with empty clauses?
+(declare-const @empty_cl Bool)
+
 
 (declare-const ite (-> (! Type :var A :implicit) Bool A A A))
 (declare-const not (-> Bool Bool))

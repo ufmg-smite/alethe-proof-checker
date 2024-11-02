@@ -50,10 +50,10 @@ impl EunoiaTranslator {
 
     fn translate_commands(&mut self, command_list: &[ProofCommand]) {
         // To get a ProofIter object
+        // TODO: improve this
         let proof = Proof {
             premises: IndexSet::new(),
             constant_definitions: Vec::new(),
-            // TODO: ugly?
             commands: command_list.to_vec(),
         };
         // ProofIter objects to get commands indexed by pairs
@@ -451,13 +451,18 @@ impl EunoiaTranslator {
         // Vec<Rc<Term>>, though it represents an
         // invocation of Alethe's cl operator
         // TODO: we are always adding the conclusion clause
-        let conclusion: EunoiaTerm = EunoiaTerm::App(
-            self.alethe_signature.cl.clone(),
-            clause
-                .iter()
-                .map(|term| self.translate_term(term))
-                .collect(),
-        );
+        let conclusion: EunoiaTerm = if clause.is_empty() {
+            EunoiaTerm::Id(self.alethe_signature.empty_cl.clone())
+        } else {
+            // {!clause.is_empty()}
+            EunoiaTerm::App(
+                self.alethe_signature.cl.clone(),
+                clause
+                    .iter()
+                    .map(|term| self.translate_term(term))
+                    .collect(),
+            )
+        };
 
         // NOTE: not adding conclusion clause to this list
         let mut eunoia_arguments: Vec<EunoiaTerm> = Vec::new();

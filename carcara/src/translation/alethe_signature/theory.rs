@@ -8,6 +8,8 @@ use std::string::String;
 pub struct AletheTheory {
     // Built-in operators.
     pub cl: Symbol,
+    // To represent the empty clause.
+    pub empty_cl: Symbol,
     pub ite: Symbol,
 
     // Logical operators.
@@ -37,6 +39,7 @@ impl AletheTheory {
     pub fn new() -> Self {
         AletheTheory {
             cl: String::from("@cl"),
+            empty_cl: String::from("@empty_cl"),
             ite: String::from("ite"),
 
             // Logical operators.
