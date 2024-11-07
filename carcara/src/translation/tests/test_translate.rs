@@ -146,7 +146,7 @@ fn test_let_example() {
          (step t1 (@cl (= (@var ( ( x S ) ) x) b)) \
          :rule refl :args ( context (@var ( ( x S ) ) x) b ))\n\
          (step-pop t2 (@cl (= (@let ( ( x S ) ) (@var ( ( x S ) ) x)) b)) \
-         :rule let_elim :premises ( t1 ) \
+         :rule let_elim :premises ( h1 t1 ) \
          :args ( context (@let ( ( x S ) ) (@var ( ( x S ) ) x)) b ))\n",
         std::str::from_utf8(&buf_proof).unwrap()
     );
