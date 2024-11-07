@@ -538,17 +538,17 @@
    ((check_implies (@cl (=> phi1 phi2)) refCL)
      (clEqual (@cl (not phi1) phi2) refCL)
    )
+   ;; TODO: why do we have this case?
    ((check_implies (=> phi1 phi2) refCL)
      (clEqual (@cl (not phi1) phi2) refCL)
    )
   )
 )
 
-(declare-rule implies ((refCL Bool) (CL Bool))
+(declare-rule implies ((CL Bool))
   :premises (CL)
-  :args (refCL)
-  :requires (((check_implies CL refCL) true))
-  :conclusion refCL
+  :requires (((check_implies CL eo::conclusion) true))
+  :conclusion-given
 )
 
 (program check_not_implies1 ((phi1 Bool) (phi2 Bool) (refCL Bool))
@@ -692,18 +692,18 @@
 )
 
 ;TODO
-(program check_or_neg ((CL Bool))
-  (Bool) Bool
+(program check_or_neg ((index Int) (CL Bool))
+  (Int Bool) Bool
   (
-   ((check_or_neg CL) true)
+   ((check_or_neg index CL) true)
   )
 )
 
 ;TRUST
-(declare-rule or_neg ((CL Bool))
-  :args (CL)
-  :requires (((check_or_neg CL) true))
-  :conclusion CL
+(declare-rule or_neg ((index Int))
+  :args (index)
+  :requires (((check_or_neg index eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -775,10 +775,9 @@
 )
 
 ;TRUST
-(declare-rule implies_pos ((CL Bool))
-  :args (CL)
-  :requires (((check_implies_pos CL) true))
-  :conclusion CL
+(declare-rule implies_pos ()
+  :requires (((check_implies_pos eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -1391,5 +1390,24 @@
   :args ((@cl (= l r)))
   :requires (((check_ite_intro l r) true))
   :conclusion (@cl (= l r))
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Table 10: Rules used by cvc5, but not by veriT
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;TODO
+(program check_symm ((premise Bool) (conclusion Bool))
+  (Bool Bool) Bool
+  (
+   ((check_symm premise conclusion) true)
+  )
+)
+; TODO: should we delegate the whole responsibility to the checker or
+; should we share responsibilities?
+;TRUST
+(declare-rule symm ((premise Bool))
+  :premises (premise)
+  :requires (((check_symm premise eo::conclusion) true))
+  :conclusion-given
 )
 
