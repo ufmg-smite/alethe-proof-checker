@@ -153,10 +153,11 @@ impl EunoiaTranslator {
                     rule,
                     premises,
                     args,
+                    discharge,
                     ..
                 }) => {
                     self.eunoia_proof
-                        .push(self.translate_step(id, clause, rule, premises, args));
+                        .push(self.translate_step(id, clause, rule, premises, args, discharge));
                     // Keep a reference to the
                     self.local_steps[self.contexts_opened - 1].push(self.eunoia_proof.len() - 1);
                 }
@@ -173,31 +174,43 @@ impl EunoiaTranslator {
                         AnchorArg::Variable((name, sort)) => {
                             // TODO: either use borrows or implement
                             // Copy trait for EunoiaTerms
-                            // Add variables to the current scope.
-                            self.variables_in_scope
-                                .insert(name.clone(), self.translate_term(sort));
 
-                            ctx_typed_params.push(EunoiaTerm::List(vec![
-                                EunoiaTerm::Id(name.clone()),
-                                self.translate_term(sort),
-                            ]));
+                            if !self.variables_in_scope.contains_key(name) {
+                                // Add variables to the current scope.
+                                self.variables_in_scope
+                                    .insert(name.clone(), self.translate_term(sort));
+
+                                ctx_typed_params.push(EunoiaTerm::List(vec![
+                                    EunoiaTerm::Id(name.clone()),
+                                    self.translate_term(sort),
+                                ]));
+                            }
                         }
                         AnchorArg::Assign((name, sort), term) => {
                             // TODO: either use borrows or implement
                             // Copy trait for EunoiaTerms
                             // Add variables to the current scope.
-                            self.variables_in_scope
-                                .insert(name.clone(), self.translate_term(sort));
+                            if !self.variables_in_scope.contains_key(name) {
+                                self.variables_in_scope
+                                    .insert(name.clone(), self.translate_term(sort));
+
+                                ctx_typed_params.push(EunoiaTerm::List(vec![
+                                    EunoiaTerm::Id(name.clone()),
+                                    self.translate_term(sort),
+                                ]));
+                            }
+
+                            // TODO: ugly patch...
+                            let rhs: EunoiaTerm = match term.deref() {
+                                Term::Var(string, _) => EunoiaTerm::Id(string.clone()),
+
+                                _ => self.translate_term(term),
+                            };
 
                             and_params.push(EunoiaTerm::App(
                                 self.alethe_signature.eq.clone(),
-                                vec![EunoiaTerm::Id(name.clone()), self.translate_term(term)],
+                                vec![EunoiaTerm::Id(name.clone()), rhs],
                             ));
-
-                            ctx_typed_params.push(EunoiaTerm::List(vec![
-                                EunoiaTerm::Id(name.clone()),
-                                self.translate_term(sort),
-                            ]));
                         }
                     });
                     // TODO: do not hard-code this string
@@ -207,7 +220,13 @@ impl EunoiaTranslator {
                     ));
 
                     // Add typed params.
-                    ctx_params.push(EunoiaTerm::List(ctx_typed_params));
+                    if ctx_typed_params.is_empty() {
+                        // Empty VarList
+                        ctx_params.push(EunoiaTerm::Id(self.alethe_signature.varlist_nil.clone()));
+                    } else {
+                        // TODO: shouldn' we build it with @varlist?
+                        ctx_params.push(EunoiaTerm::List(ctx_typed_params));
+                    }
 
                     // Concat (and...)
                     ctx_params.push(EunoiaTerm::App(
@@ -309,7 +328,37 @@ impl EunoiaTranslator {
                 ],
             ),
 
-            _ => EunoiaTerm::True,
+            Term::Binder(binder, binding_list, scope) => {
+                match binder {
+                    Binder::Forall => EunoiaTerm::App(
+                        self.alethe_signature.forall_binder.clone(),
+                        vec![
+                            self.translate_binding_list(binding_list),
+                            self.translate_term(scope),
+                        ],
+                    ),
+
+                    Binder::Exists => EunoiaTerm::App(
+                        self.alethe_signature.exists_binder.clone(),
+                        vec![
+                            self.translate_binding_list(binding_list),
+                            self.translate_term(scope),
+                        ],
+                    ),
+
+                    // TODO: complete
+                    _ => EunoiaTerm::App(
+                        self.alethe_signature.exists_binder.clone(),
+                        vec![
+                            self.translate_binding_list(binding_list),
+                            self.translate_term(scope),
+                        ],
+                    ),
+                }
+            }
+
+            // TODO: complete
+            Term::ParamOp { .. } => EunoiaTerm::True,
         }
     }
 
@@ -476,6 +525,7 @@ impl EunoiaTranslator {
         rule: &str,
         premises: &[Rc<ProofNode>],
         args: &[ProofArg],
+        discharge: &[Rc<ProofNode>],
     ) -> EunoiaCommand {
         let command: EunoiaCommand;
         let mut alethe_premises: Vec<EunoiaTerm> = Vec::new();
@@ -570,13 +620,49 @@ impl EunoiaTranslator {
                 };
             }
 
-            "equiv_pos2" => {
+            "bind" => {
+                // :assumption: ctx
+                command = EunoiaCommand::StepPop {
+                    name: id.to_owned(),
+                    conclusion_clause: Some(conclusion),
+                    rule: self.alethe_signature.bind.clone(),
+                    premises: EunoiaList { list: alethe_premises },
+                    arguments: EunoiaList { list: eunoia_arguments },
+                };
+            }
+
+            "subproof" => {
+                // TODO: check this
+                // The command gets the formula proven through
+                // an "assumption", hence, we use StepPop.
+                // The discharged assumptions (received through the
+                // "discharge" formal parameter), will passed to
+                // our mechanization in Eunoia as :premises
+                let mut discharged_assumptions: Vec<EunoiaTerm> = Vec::new();
+
+                discharge.iter().for_each(|assumption| {
+                    discharged_assumptions
+                        .push(EunoiaTerm::Id(String::from(assumption.deref().id())));
+                });
+
+                // TODO: we are discarding vector premises
+                command = EunoiaCommand::StepPop {
+                    name: id.to_owned(),
+                    conclusion_clause: Some(conclusion),
+                    rule: self.alethe_signature.subproof.clone(),
+                    premises: EunoiaList { list: discharged_assumptions },
+                    arguments: EunoiaList { list: eunoia_arguments },
+                };
+            }
+
+            "forall_inst" => {
+                // TODO: we are discarding vector and premises arguments
                 command = EunoiaCommand::Step {
                     name: id.to_owned(),
                     conclusion_clause: Some(conclusion),
-                    rule: self.alethe_signature.equiv_pos2.clone(),
-                    premises: EunoiaList { list: alethe_premises },
-                    arguments: EunoiaList { list: eunoia_arguments },
+                    rule: self.alethe_signature.forall_inst.clone(),
+                    premises: EunoiaList { list: Vec::new() },
+                    arguments: EunoiaList { list: Vec::new() },
                 };
             }
 

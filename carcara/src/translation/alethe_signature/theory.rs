@@ -23,9 +23,13 @@ pub struct AletheTheory {
     pub ge: Symbol,
 
     // Rules' names.
+    // TODO: order this
     pub let_rule: Symbol,
     pub equiv_pos2: Symbol,
+    pub bind: Symbol,
     pub refl: Symbol,
+    pub subproof: Symbol,
+    pub forall_inst: Symbol,
 
     // Context representation and manipulation.
     // To bind variables in a context.
@@ -33,6 +37,11 @@ pub struct AletheTheory {
 
     // Binders.
     pub let_binder: Symbol,
+    pub forall_binder: Symbol,
+    pub exists_binder: Symbol,
+
+    // VarList constructors
+    pub varlist_nil: Symbol,
 }
 
 impl AletheTheory {
@@ -56,12 +65,20 @@ impl AletheTheory {
             let_rule: String::from("let_elim"),
             refl: String::from("refl"),
             equiv_pos2: String::from("equiv_pos2"),
+            subproof: String::from("subproof"),
+            forall_inst: String::from("forall_inst"),
+            bind: String::from("bind"),
 
             // Context representation and manipulation.
             var: String::from("@var"),
 
             // Binders.
             let_binder: String::from("@let"),
+            forall_binder: String::from("forall"),
+            exists_binder: String::from("exists"),
+
+            // VarList constructors
+            varlist_nil: String::from("@varlist.nil"),
         }
     }
 

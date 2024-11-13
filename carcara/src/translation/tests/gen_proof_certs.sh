@@ -3,7 +3,7 @@
 # Generates Alethe proof certificates, using $COMMAND, from input problems
 # contained in $DIR.
 DIR="./problems/"
-COMMAND="cvc5 --dump-proofs --proof-format-mode=alethe"
+COMMAND="cvc5 --dump-proofs --proof-format-mode=alethe --proof-elim-subtypes"
 
 # Loop through each file in the directory.
 for FILE in "$DIR"/*; do

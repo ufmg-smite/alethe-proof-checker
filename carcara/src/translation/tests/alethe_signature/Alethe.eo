@@ -101,12 +101,21 @@
   :conclusion CL
 )
 
+;TODO
+(program check_subproof ((Premises Bool) (Conclusion Bool) (Conclusion_given Bool))
+  (Bool Bool Bool) Bool
+  (
+   ((check_subproof Premises Conclusion Conclusion_given) true)
+  )
+)
+
 ;TODO: test if the list here works well
 (declare-rule subproof ((F Bool) (G Bool :list))
+  ; TODO: why is it an assumption?
   :assumption F ;has no cl!
   :premises (G)
-  :args ((@cl (not F) G))
-  :conclusion (@cl (not F) G)
+  :requires (((check_subproof (not F) G eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -202,10 +211,13 @@
 ;TRUST
 (declare-rule bind ((ctx Bool) (old_ctx Bool) (T Type) (l T) (r T) (l1 T) (r1 T))
   :assumption ctx
-  :premises (old_ctx (@cl (= l1 r1))) ; this is never a direct assumption
-  :args ((@cl (= l r)))
-  :requires (((context_extended ctx old_ctx) true) ((check_bind ctx l r l1 r1) true))
-  :conclusion (@cl (= l r))
+  ;:premises (old_ctx (@cl (= l1 r1))) ; this is never a direct assumption
+  ;; :premises (old_ctx) ; TODO: fix this
+  ;; :requires (((context_extended ctx old_ctx) true) ((check_bind ctx l r l1 r1) true))
+  ;; :requires (((context_extended ctx old_ctx) true) 
+  ;;            ;; ((check_bind ctx l r l1 r1) true)
+  ;;            )
+  :conclusion-given
 )
 
 ;TODO
@@ -242,19 +254,19 @@
   :conclusion (@cl (= l r))
 )
 
-;TODO
-(program check_forall_inst ((xs @VarList) (P Bool) (PP Bool))
-  (@VarList Bool Bool) Bool
+;TODO: changing this for the tests to pass!
+(program check_forall_inst ((Conclusion Bool))
+  (Bool) Bool
   (
-   ((check_forall_inst xs P PP) true)
+   ((check_forall_inst Conclusion) true)
   )
 )
 
 ;TRUST
-(declare-rule forall_inst ((P Bool) (PP Bool) (xs @VarList))
-  :args ((@cl (or (not (forall xs P) PP))))
-  :requires (((check_forall_inst xs P PP) true))
-  :conclusion (@cl (or (not (forall xs P) PP)))
+;TODO: changing this for the tests to pass!
+(declare-rule forall_inst ()
+  :requires (((check_forall_inst eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO: why is type T not mentioned in the body of check_refl?
@@ -276,18 +288,26 @@
 
 (program last_eq_right ((T Type) (t1 T) (t2 T) (eqs Bool))
   (Bool) Bool
-  (; TODO: are they always clauses? (seems that it is not the
-   ; case if the premises where just "assume"s)
-    ((last_eq_right (and (@cl (= t1 t2)))) t2)
+  (; TODO: not clear why we need to consider all of these different scenarios
+   ; (with and without and)
+   ((last_eq_right (@cl (= t1 t2))) t2)
+
+   ((last_eq_right (and (@cl (= t1 t2)))) t2)
     ((last_eq_right (and (@cl (= t1 t2)) eqs)) (last_eq_right eqs))
+   ; TODO: are they always clauses? (seems that it is not the
+   ; case if the premises where just "assume"s)
+    ((last_eq_right (and (= t1 t2))) t2)
+    ((last_eq_right (and (= t1 t2) eqs)) (last_eq_right eqs))
   )
 )
 
 (program make_trans ((T Type) (t1 T) (t2 T) (eqs Bool :list))
   (Bool) Bool
-  (; TODO: are they always clauses?
-   ((make_trans (and (@cl (= t1 t2)))) (= t1 t2))
+  (((make_trans (and (@cl (= t1 t2)))) (= t1 t2))
    ((make_trans (and (@cl (= t1 t2)) eqs)) (= t1 (last_eq_right eqs)))
+   ; TODO: if they are 'assume's, they could be term not built with @cl
+   ((make_trans (and (= t1 t2))) (= t1 t2))
+   ((make_trans (and (= t1 t2) eqs)) (= t1 (last_eq_right eqs)))
   )
 )
 
@@ -601,11 +621,10 @@
   )
 )
 
-(declare-rule equiv1 ((refCL Bool) (CL Bool))
+(declare-rule equiv1 ((CL Bool))
   :premises (CL)
-  :args (refCL)
-  :requires (((check_equiv1 CL refCL) true))
-  :conclusion refCL
+  :requires (((check_equiv1 CL eo::conclusion) true))
+  :conclusion-given
 )
 
 (program check_equiv2 ((phi1 Bool) (phi2 Bool) (refCL Bool))
@@ -670,10 +689,9 @@
 )
 
 ;TRUST
-(declare-rule and_neg ((CL Bool))
-  :args (CL)
-  :requires (((check_and_neg CL) true))
-  :conclusion CL
+(declare-rule and_neg ()
+  :requires (((check_and_neg eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -789,10 +807,9 @@
 )
 
 ;TRUST
-(declare-rule implies_neg1 ((CL Bool))
-  :args (CL)
-  :requires (((check_implies_neg1 CL) true))
-  :conclusion CL
+(declare-rule implies_neg1 ()
+  :requires (((check_implies_neg1 eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -805,9 +822,8 @@
 
 ;TRUST
 (declare-rule implies_neg2 ((CL Bool))
-  :args (CL)
-  :requires (((check_implies_neg2 CL) true))
-  :conclusion CL
+  :requires (((check_implies_neg2 eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -902,9 +918,8 @@
 
 (declare-rule ite2 ((refCL Bool) (CL Bool))
   :premises (CL)
-  :args (refCL)
-  :requires (((check_ite2 CL refCL) true))
-  :conclusion refCL
+  :requires (((check_ite2 CL eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -1074,18 +1089,17 @@
 )
 
 ;TODO
-(program check_equiv_simplify ((l Bool) (r Bool))
-  (Bool Bool) Bool
+(program check_equiv_simplify ((conclusion Bool))
+  (Bool) Bool
   (
-   ((check_equiv_simplify l r) true)
+   ((check_equiv_simplify conclusion) true)
   )
 )
 
 ;TRUST
-(declare-rule equiv_simplify ((l Bool) (r Bool))
-  :args ((@cl (= l r)))
-  :requires (((check_equiv_simplify l r) true))
-  :conclusion (@cl (= l r))
+(declare-rule equiv_simplify ()
+  :requires (((check_equiv_simplify eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -1406,6 +1420,21 @@
 ; should we share responsibilities?
 ;TRUST
 (declare-rule symm ((premise Bool))
+  :premises (premise)
+  :requires (((check_symm premise eo::conclusion) true))
+  :conclusion-given
+)
+
+;TODO
+(program check_reordering ((premise Bool) (conclusion Bool))
+  (Bool Bool) Bool
+  (
+   ((check_reordering premise conclusion) true)
+  )
+)
+
+;TRUST
+(declare-rule reordering ((premise Bool))
   :premises (premise)
   :requires (((check_symm premise eo::conclusion) true))
   :conclusion-given
