@@ -102,19 +102,18 @@
 )
 
 ;TODO
-(program check_subproof ((Premises Bool) (Conclusion Bool) (Conclusion_given Bool))
-  (Bool Bool Bool) Bool
+(program check_subproof ((Premises Bool) (Conclusion Bool))
+  (Bool Bool) Bool
   (
-   ((check_subproof Premises Conclusion Conclusion_given) true)
+   ((check_subproof Premises Conclusion) true)
   )
 )
 
 ;TODO: test if the list here works well
-(declare-rule subproof ((F Bool) (G Bool :list))
+(declare-rule subproof ((F Bool))
   ; TODO: why is it an assumption?
   :assumption F ;has no cl!
-  :premises (G)
-  ;; :requires (((check_subproof (not F) G eo::conclusion) true))
+  :requires (((check_subproof (not F) eo::conclusion) true))
   :conclusion-given
 )
 

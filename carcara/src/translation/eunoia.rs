@@ -44,6 +44,10 @@ pub struct EunoiaTranslator {
 
     /// Maintains references to previous steps from the actual subproof.
     local_steps: Vec<Vec<usize>>,
+
+    // TODO: check if we actually need the whole ProofNode
+    /// Rule of the last step from the actual subproof, if any.
+    last_step: Option<String>,
 }
 
 impl EunoiaTranslator {
@@ -57,6 +61,7 @@ impl EunoiaTranslator {
             variables_in_scope: HashMap::new(),
             contexts_opened: 0,
             local_steps: Vec::new(),
+            last_step: None,
         }
     }
 
@@ -209,13 +214,10 @@ impl EunoiaTranslator {
         // "closure requires unique access to `*self` but it is already borrowed//
         self.pre_ord_proof.clone().iter().for_each(|node| {
             match node {
-                ProofNode::Assume { id, depth: _, term } => {
+                ProofNode::Assume { id, depth, term } => {
                     self.eunoia_proof.push(
                         // TODO: what about :named?
-                        EunoiaCommand::Assume {
-                            name: id.clone(),
-                            term: self.translate_term(term),
-                        },
+                        self.translate_assume(id, *depth, term),
                     );
                 }
 
@@ -229,14 +231,14 @@ impl EunoiaTranslator {
                     discharge,
                     ..
                 }) => {
-                    self.eunoia_proof
-                        .push(self.translate_step(id, clause, rule, premises, args, discharge));
-                    // Save the index
+                    self.translate_step(id, clause, rule, premises, args, discharge);
+
+                    // Save the index for future reference
                     self.local_steps[self.contexts_opened - 1].push(self.eunoia_proof.len() - 1);
                 }
 
                 // A subproof introduced by the 'anchor' command.
-                ProofNode::Subproof(SubproofNode { last_step: _, args, .. }) => {
+                ProofNode::Subproof(SubproofNode { last_step, args, .. }) => {
                     // To store @VarList parameters to @ctx
                     let mut ctx_params = Vec::new();
                     let mut ctx_typed_params = Vec::new();
@@ -330,6 +332,20 @@ impl EunoiaTranslator {
                     // New context opened...
                     self.contexts_opened += 1;
                     self.local_steps.push(Vec::new());
+
+                    // Save information about the last step of the subproof
+                    match (*last_step).deref() {
+                        ProofNode::Step(StepNode {
+                            id: _, depth: _, clause: _, rule, ..
+                        }) => {
+                            self.last_step = Some(rule.clone());
+                        }
+
+                        _ => {
+                            // It shouldn't be something different then a step
+                            panic!();
+                        }
+                    }
 
                     // TODO: clean contextual assumptions and var. defs.
                 }
@@ -588,19 +604,49 @@ impl EunoiaTranslator {
         }
     }
 
+    /// Implements the translation of an Alethe `Assume`, taking into
+    /// account technical differences in the way Alethe rules are
+    /// expressed within Eunoia.
+    fn translate_assume(&self, id: &str, _depth: usize, term: &Rc<Term>) -> EunoiaCommand {
+        // Check last instruction in actual subproof
+        let ret = match &self.last_step {
+            // subproof receives every "assume" command as an actual
+            // ethos assumption; we need to push every assumption
+            Some(rule) => match rule.as_str() {
+                "subproof" => EunoiaCommand::AssumePush {
+                    name: id.to_owned(),
+                    term: self.translate_term(term),
+                },
+
+                _ => EunoiaCommand::Assume {
+                    name: id.to_owned(),
+                    term: self.translate_term(term),
+                },
+            },
+
+            // Regular introduction of assumptions
+            _ => EunoiaCommand::Assume {
+                name: id.to_owned(),
+                term: self.translate_term(term),
+            },
+        };
+
+        ret
+    }
+
     /// Implements the translation of an Alethe `ProofStep`, taking into
     /// account technical differences in the way Alethe rules are
     /// expressed within Eunoia.
+    /// Updates `self.eunoia_proof`.
     fn translate_step(
-        &self,
+        &mut self,
         id: &str,
         clause: &[Rc<Term>],
         rule: &str,
         premises: &[Rc<ProofNode>],
         args: &[ProofArg],
         discharge: &[Rc<ProofNode>],
-    ) -> EunoiaCommand {
-        let command: EunoiaCommand;
+    ) {
         let mut alethe_premises: Vec<EunoiaTerm> = Vec::new();
 
         // Add remaining premises, actually present in the original step command.
@@ -664,13 +710,13 @@ impl EunoiaTranslator {
                         }
                     });
 
-                command = EunoiaCommand::StepPop {
+                self.eunoia_proof.push(EunoiaCommand::StepPop {
                     name: id.to_owned(),
                     conclusion_clause: Some(conclusion),
                     rule: self.alethe_signature.let_rule.clone(),
                     premises: EunoiaList { list: alethe_premises },
                     arguments: EunoiaList { list: eunoia_arguments },
-                };
+                });
             }
 
             "refl" => {
@@ -684,24 +730,24 @@ impl EunoiaTranslator {
 
                 eunoia_arguments.push(rhs);
 
-                command = EunoiaCommand::Step {
+                self.eunoia_proof.push(EunoiaCommand::Step {
                     name: id.to_owned(),
                     conclusion_clause: Some(conclusion),
                     rule: self.alethe_signature.refl.clone(),
                     premises: EunoiaList { list: alethe_premises },
                     arguments: EunoiaList { list: eunoia_arguments },
-                };
+                });
             }
 
             "bind" => {
                 // :assumption: ctx
-                command = EunoiaCommand::StepPop {
+                self.eunoia_proof.push(EunoiaCommand::StepPop {
                     name: id.to_owned(),
                     conclusion_clause: Some(conclusion),
                     rule: self.alethe_signature.bind.clone(),
                     premises: EunoiaList { list: alethe_premises },
                     arguments: EunoiaList { list: eunoia_arguments },
-                };
+                });
             }
 
             "subproof" => {
@@ -709,48 +755,63 @@ impl EunoiaTranslator {
                 // The command gets the formula proven through
                 // an "assumption", hence, we use StepPop.
                 // The discharged assumptions (received through the
-                // "discharge" formal parameter), will passed to
-                // our mechanization in Eunoia as :premises
-                let mut discharged_assumptions: Vec<EunoiaTerm> = Vec::new();
+                // "discharge" formal parameter), will be passed to
+                // our mechanization in Eunoia as :assumption
+                let mut implied_conclusion: EunoiaTerm = conclusion;
 
                 discharge.iter().for_each(|assumption| {
-                    discharged_assumptions
-                        .push(EunoiaTerm::Id(String::from(assumption.deref().id())));
-                });
+                    // TODO: we are discarding vector premises
+                    match assumption.deref() {
+                        ProofNode::Assume { id: _, depth: _, term } => {
+                            implied_conclusion = EunoiaTerm::App(
+                                self.alethe_signature.or.clone(),
+                                vec![
+                                    EunoiaTerm::App(
+                                        self.alethe_signature.not.clone(),
+                                        vec![self.translate_term(term)],
+                                    ),
+                                    implied_conclusion.clone(),
+                                ],
+                            );
 
-                // TODO: we are discarding vector premises
-                command = EunoiaCommand::StepPop {
-                    name: id.to_owned(),
-                    conclusion_clause: Some(conclusion),
-                    rule: self.alethe_signature.subproof.clone(),
-                    premises: EunoiaList { list: discharged_assumptions },
-                    arguments: EunoiaList { list: eunoia_arguments },
-                };
+                            self.eunoia_proof.push(EunoiaCommand::StepPop {
+                                name: id.to_owned(),
+                                conclusion_clause: Some(implied_conclusion.clone()),
+                                rule: self.alethe_signature.subproof.clone(),
+                                premises: EunoiaList { list: Vec::new() },
+                                arguments: EunoiaList { list: eunoia_arguments.clone() },
+                            });
+                        }
+
+                        _ => {
+                            // TODO: it shouldn't be a ProofNode different than an Assume
+                            panic!();
+                        }
+                    }
+                });
             }
 
             "forall_inst" => {
                 // TODO: we are discarding vector and premises arguments
-                command = EunoiaCommand::Step {
+                self.eunoia_proof.push(EunoiaCommand::Step {
                     name: id.to_owned(),
                     conclusion_clause: Some(conclusion),
                     rule: self.alethe_signature.forall_inst.clone(),
                     premises: EunoiaList { list: Vec::new() },
                     arguments: EunoiaList { list: Vec::new() },
-                };
+                });
             }
 
             _ => {
-                command = EunoiaCommand::Step {
+                self.eunoia_proof.push(EunoiaCommand::Step {
                     name: id.to_owned(),
                     conclusion_clause: Some(conclusion),
                     rule: rule.to_owned(),
                     premises: EunoiaList { list: alethe_premises },
                     arguments: EunoiaList { list: eunoia_arguments },
-                };
+                });
             }
         }
-
-        command
     }
 
     // TODO: make eunoia_prelude an attribute of EunoiaTranslator

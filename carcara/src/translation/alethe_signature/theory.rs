@@ -14,6 +14,8 @@ pub struct AletheTheory {
 
     // Logical operators.
     pub and: Symbol,
+    pub not: Symbol,
+    pub or: Symbol,
 
     // Comparison.
     pub eq: Symbol,
@@ -53,6 +55,8 @@ impl AletheTheory {
 
             // Logical operators.
             and: String::from("and"),
+            or: String::from("or"),
+            not: String::from("not"),
 
             // Comparison.
             eq: String::from("="),
