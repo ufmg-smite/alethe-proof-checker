@@ -689,7 +689,7 @@ impl EunoiaTranslator {
                 eunoia_arguments.push(EunoiaTerm::Id("context".to_owned()));
 
                 // Extract lhs and rhs
-                let (lhs, rhs) = AletheTheory::extract_eq_lhs_rhs(&conclusion);
+                let (lhs, rhs) = self.alethe_signature.extract_eq_lhs_rhs(&conclusion);
                 eunoia_arguments.push(lhs);
                 eunoia_arguments.push(rhs);
 
@@ -724,7 +724,7 @@ impl EunoiaTranslator {
                 eunoia_arguments.push(EunoiaTerm::Id("context".to_owned()));
 
                 // Extract lhs and rhs
-                let (lhs, rhs) = AletheTheory::extract_eq_lhs_rhs(&conclusion);
+                let (lhs, rhs) = self.alethe_signature.extract_eq_lhs_rhs(&conclusion);
 
                 eunoia_arguments.push(lhs);
 
@@ -752,19 +752,24 @@ impl EunoiaTranslator {
 
             "subproof" => {
                 // TODO: check this
-                // The command gets the formula proven through
-                // an "assumption", hence, we use StepPop.
-                // The discharged assumptions (received through the
-                // "discharge" formal parameter), will be passed to
-                // our mechanization in Eunoia as :assumption
-                let mut implied_conclusion: EunoiaTerm = conclusion;
+                // The command (as mechanized in Eunoia) gets the formula proven
+                // through an "assumption", hence, we use StepPop.
+                // The discharged assumptions (specified, in Alethe, through the
+                // "discharge" formal parameter), will be pushed
+                let mut implied_conclusion: EunoiaTerm =
+                    self.alethe_signature.extract_consequent(&conclusion);
+
+                // Assuming that the conclusion is of the form
+                // not φ1, ..., not φn, ψ
+                // extract ψ
+                let premise = self.alethe_signature.extract_consequent(&conclusion);
 
                 discharge.iter().for_each(|assumption| {
                     // TODO: we are discarding vector premises
                     match assumption.deref() {
                         ProofNode::Assume { id: _, depth: _, term } => {
                             implied_conclusion = EunoiaTerm::App(
-                                self.alethe_signature.or.clone(),
+                                self.alethe_signature.cl.clone(),
                                 vec![
                                     EunoiaTerm::App(
                                         self.alethe_signature.not.clone(),
@@ -778,7 +783,7 @@ impl EunoiaTranslator {
                                 name: id.to_owned(),
                                 conclusion_clause: Some(implied_conclusion.clone()),
                                 rule: self.alethe_signature.subproof.clone(),
-                                premises: EunoiaList { list: Vec::new() },
+                                premises: EunoiaList { list: vec![premise.clone()] },
                                 arguments: EunoiaList { list: eunoia_arguments.clone() },
                             });
                         }

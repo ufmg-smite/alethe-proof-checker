@@ -86,21 +86,51 @@ impl AletheTheory {
         }
     }
 
-    // Utilities to help in the translation of steps using specific rules.
+    // Utilities to help in the translation of steps that use specific rules.
 
     // Helps in extracting the lhs and rhs of a conclusion clause of
     // the form (@cl ("=", t1, t2)).
-    // PRE: {conclusion is a EunoiaTerm of the form (@cl ("=", t1, t2)) }
-    pub fn extract_eq_lhs_rhs(conclusion: &EunoiaTerm) -> (EunoiaTerm, EunoiaTerm) {
+    // PRE: {conclusion is an EunoiaTerm of the form (@cl ("=", t1, t2)) }
+    pub fn extract_eq_lhs_rhs(&self, conclusion: &EunoiaTerm) -> (EunoiaTerm, EunoiaTerm) {
         match conclusion {
             // TODO: just assuming that cl and clause are correct
-            EunoiaTerm::App(.., clause) => match clause.as_slice() {
-                [EunoiaTerm::App(.., lhs_rhs)] => match lhs_rhs.as_slice() {
-                    [lhs, rhs] => (lhs.clone(), rhs.clone()),
+            EunoiaTerm::App(cl, clause) => match clause.as_slice() {
+                [EunoiaTerm::App(eq, lhs_rhs)] => match lhs_rhs.as_slice() {
+                    [lhs, rhs] => {
+                        assert!(*cl == self.cl);
+                        assert!(*eq == self.eq);
+                        (lhs.clone(), rhs.clone())
+                    }
+
                     _ => panic!(),
                 },
 
                 _ => panic!(),
+            },
+
+            _ => {
+                panic!();
+            }
+        }
+    }
+
+    // Helps in extracting the consequent of an implication in the form
+    // (@cl (not p1 or p2)).
+    // PRE: {conclusion is an EunoiaTerm of the form (@cl (not p1 or p2)) }
+    pub fn extract_consequent(&self, conclusion: &EunoiaTerm) -> EunoiaTerm {
+        match conclusion {
+            // @cl
+            EunoiaTerm::App(cl, disjuncts) => match disjuncts.as_slice() {
+                [.., consequent] => {
+                    // NOTE: not checking the structure of remaining disjuncts
+                    assert!(*cl == self.cl);
+                    consequent.clone()
+                }
+
+                _ => {
+                    println!("Actual conclusion: {:?}", conclusion);
+                    panic!()
+                }
             },
 
             _ => {
