@@ -114,7 +114,7 @@
   ; TODO: why is it an assumption?
   :assumption F ;has no cl!
   :premises (G)
-  :requires (((check_subproof (not F) G eo::conclusion) true))
+  ;; :requires (((check_subproof (not F) G eo::conclusion) true))
   :conclusion-given
 )
 

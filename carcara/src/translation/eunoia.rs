@@ -16,10 +16,16 @@ pub struct EunoiaTranslator {
     // "cannot move out... a captured variable in an `FnMut` closure" errors
     // TODO: declared as Vec<ProofNode> (not using borrows) to avoid
     // error "borrowed data escapes outside of closure"
-    /// Auxiliary attributes useful to maintain a pre-ordered version
+    /// Auxiliary attribute useful to maintain a pre-ordered version
     /// of the `ProofNode` graph.
-    pre_ord_proof_node: Vec<ProofNode>,
-    aux_pre_ord_proof_node: Vec<ProofNode>,
+    pre_ord_proof: Vec<ProofNode>,
+
+    /// Depth of the previous node visited.
+    previous_depth: usize,
+
+    /// Auxiliary attribute useful to maintain a pre-ordered version
+    /// of every node from a subproof with depth bigger than 1.
+    pre_ord_subproofs: Vec<Vec<ProofNode>>,
 
     // TODO: see for a better way of including Alethe's signature
     // We are not including it into the Pool of terms
@@ -36,7 +42,7 @@ pub struct EunoiaTranslator {
     /// about context opening.
     contexts_opened: usize,
 
-    /// Maintains references to previous steps from the actual sub-proof.
+    /// Maintains references to previous steps from the actual subproof.
     local_steps: Vec<Vec<usize>>,
 }
 
@@ -44,8 +50,9 @@ impl EunoiaTranslator {
     pub fn new() -> Self {
         Self {
             eunoia_proof: Vec::new(),
-            pre_ord_proof_node: Vec::new(),
-            aux_pre_ord_proof_node: Vec::new(),
+            pre_ord_proof: Vec::new(),
+            previous_depth: 0,
+            pre_ord_subproofs: Vec::new(),
             alethe_signature: AletheTheory::new(),
             variables_in_scope: HashMap::new(),
             contexts_opened: 0,
@@ -57,8 +64,9 @@ impl EunoiaTranslator {
         // Clean previously created data.
         if self.contexts_opened > 0 {
             self.eunoia_proof = Vec::new();
-            self.pre_ord_proof_node = Vec::new();
-            self.aux_pre_ord_proof_node = Vec::new();
+            self.pre_ord_proof = Vec::new();
+            self.previous_depth = 0;
+            self.pre_ord_subproofs = Vec::new();
             self.variables_in_scope = HashMap::new();
             self.contexts_opened = 0;
             self.local_steps = Vec::new();
@@ -103,30 +111,95 @@ impl EunoiaTranslator {
 
     // TODO: aux method that shouldn't be here
     // TODO: is there some practical way of doing partial application of
-    // procedures? Quick fix: transferring ownership of vectors
+    // procedures? Quick fix: using attributes (aux_pre_ord_proof_node, etc)
     fn post_order_to_list(&mut self, node: &Rc<ProofNode>) {
         match (*node).deref() {
-            ProofNode::Assume { .. } => {
-                self.pre_ord_proof_node.push((*node).deref().clone());
+            ProofNode::Assume { id: _, depth, .. } => {
+                if *depth > self.previous_depth {
+                    // A new subproof
+                    // TODO: ugly
+                    while self.pre_ord_subproofs.len() < *depth {
+                        self.pre_ord_subproofs.push(Vec::new());
+                    }
+
+                    // { self.pre_ord_subproofs.len() >= *depth }
+
+                    self.pre_ord_subproofs[*depth - 1].push((*node).deref().clone());
+                } else {
+                    // { *depth <= self.previous_depth }
+                    if *depth == 0 {
+                        // This is not a node from a subproof, we can safely push it
+                        // into pre_ord_proof_node.
+                        self.pre_ord_proof.push((*node).deref().clone());
+                    } else {
+                        // { *depth > 0 }
+                        // We are still within a subproof
+                        assert!(self.pre_ord_subproofs.len() >= *depth - 1);
+                        self.pre_ord_subproofs[*depth - 1].push((*node).deref().clone());
+                    }
+                }
+
+                self.previous_depth = *depth;
             }
 
             ProofNode::Step(StepNode { id: _, depth, .. }) => {
-                if *depth > 0 {
-                    // This is a node from a subproof.
-                    self.aux_pre_ord_proof_node.push((*node).deref().clone());
+                if *depth > self.previous_depth {
+                    // A new subproof
+                    // TODO: ugly
+                    while self.pre_ord_subproofs.len() < *depth {
+                        self.pre_ord_subproofs.push(Vec::new());
+                    }
+
+                    // { self.pre_ord_subproofs.len() >= *depth }
+                    self.pre_ord_subproofs[*depth - 1].push((*node).deref().clone());
                 } else {
-                    // { depth == 0}
-                    // This is not a node from a subproof, we can safely push it
-                    // into pre_ord_proof_node.
-                    self.pre_ord_proof_node.push((*node).deref().clone());
+                    // { *depth <= self.previous_depth }
+                    if *depth == 0 {
+                        // This is not a node from a subproof, we can safely push it
+                        // into pre_ord_proof_node.
+                        self.pre_ord_proof.push((*node).deref().clone());
+                    } else {
+                        // { *depth > 0 }
+                        // We are still within a subproof
+                        assert!(self.pre_ord_subproofs.len() >= *depth);
+                        self.pre_ord_subproofs[*depth - 1].push((*node).deref().clone());
+                    }
                 }
+
+                self.previous_depth = *depth;
             }
 
             // A subproof introduced by the 'anchor' command.
-            ProofNode::Subproof(..) => {
-                self.pre_ord_proof_node.push((*node).deref().clone());
-                self.pre_ord_proof_node
-                    .append(&mut self.aux_pre_ord_proof_node);
+            ProofNode::Subproof(SubproofNode { last_step, .. }) => {
+                match (*last_step).deref() {
+                    ProofNode::Step(StepNode { id: _, depth, .. }) => {
+                        assert!(1 <= *depth && *depth == self.previous_depth);
+
+                        if *depth == 1 {
+                            // Outermost subproof: we return to self.pre_ord_proof
+                            self.pre_ord_proof.push((*node).deref().clone());
+                            self.pre_ord_proof
+                                .append(&mut self.pre_ord_subproofs[*depth - 1]);
+                        } else {
+                            // { depth > 1 }
+                            // UNSAFE
+                            let (left_slice, right_slice) =
+                                self.pre_ord_subproofs.split_at_mut(*depth - 1);
+                            left_slice[*depth - 2].push((*node).deref().clone());
+                            left_slice[*depth - 2].append(&mut right_slice[0]);
+                        }
+
+                        // Pop the subproof being closed
+                        self.pre_ord_subproofs.pop();
+
+                        self.previous_depth = *depth;
+                    }
+
+                    _ => {
+                        // It shouldn't be a ProofNode different than a Step
+                        panic!();
+                    }
+                }
             }
         }
     }
@@ -134,7 +207,7 @@ impl EunoiaTranslator {
     fn translate_pre_ord_proof_node(&mut self) {
         // NOTE: cloning to avoid error
         // "closure requires unique access to `*self` but it is already borrowed//
-        self.pre_ord_proof_node.clone().iter().for_each(|node| {
+        self.pre_ord_proof.clone().iter().for_each(|node| {
             match node {
                 ProofNode::Assume { id, depth: _, term } => {
                     self.eunoia_proof.push(
@@ -158,7 +231,7 @@ impl EunoiaTranslator {
                 }) => {
                     self.eunoia_proof
                         .push(self.translate_step(id, clause, rule, premises, args, discharge));
-                    // Keep a reference to the
+                    // Save the index
                     self.local_steps[self.contexts_opened - 1].push(self.eunoia_proof.len() - 1);
                 }
 
@@ -239,7 +312,7 @@ impl EunoiaTranslator {
                     // TODO: do not hard-code this string
                     let context_name = String::from("ctx") + &self.contexts_opened.to_string();
 
-                    // Close the opened sub-proof
+                    // Close the opened subproof
                     self.eunoia_proof.push(EunoiaCommand::Define {
                         name: context_name.clone(),
                         typed_params: EunoiaList { list: Vec::new() },
@@ -574,7 +647,7 @@ impl EunoiaTranslator {
                 eunoia_arguments.push(lhs);
                 eunoia_arguments.push(rhs);
 
-                // Include, as premises, previous steps from the actual sub-proof.
+                // Include, as premises, previous steps from the actual subproof.
                 self.local_steps[self.contexts_opened - 1]
                     .iter()
                     .for_each(|index| {
@@ -584,7 +657,7 @@ impl EunoiaTranslator {
                             }
 
                             _ => {
-                                // NOTE: it shouldn't an index to something different
+                                // NOTE: it shouldn't be an index to something different
                                 // than a step.
                                 panic!();
                             }
