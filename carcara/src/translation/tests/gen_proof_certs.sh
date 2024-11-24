@@ -4,6 +4,7 @@
 # contained in $DIR.
 DIR="./problems/"
 COMMAND="cvc5 --dump-proofs --proof-format-mode=alethe --proof-elim-subtypes"
+CARCARA_COMMAND="../../../../target/release/carcara check"
 
 # Loop through each file in the directory.
 for FILE in "$DIR"/*; do
@@ -22,14 +23,16 @@ for FILE in "$DIR"/*; do
 
             # Check the return code of the command
             if [ $? -eq 0 ]; then
-                # Print a success message
+                ${CARCARA_COMMAND} "$PROOF_CERTIFICATE" "$FILE"
+
+                if [ $? -eq 0 ]; then
                 echo "Successfully processed $FILE and saved output to $PROOF_CERTIFICATE"
                 echo ""
-            else
-                rm "$PROOF_CERTIFICATE"
-                # Print an error message
-                echo "Failed to process $FILE"
-                echo ""
+                else
+                    # Print an error message
+                    echo "Failed to process $FILE"
+                    echo ""
+                fi
             fi
         fi
     fi
