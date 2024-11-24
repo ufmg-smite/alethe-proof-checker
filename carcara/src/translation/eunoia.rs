@@ -625,18 +625,6 @@ impl EunoiaTranslator {
         }
     }
 
-    fn translate_proof_arg(&self, proof_arg: &ProofArg) -> EunoiaTerm {
-        match proof_arg {
-            // An argument that is just a term.
-            ProofArg::Term(term) => self.translate_term(term),
-
-            ProofArg::Assign(.., term) => {
-                // TODO: how should we translate (:= <symbol> <term>)?
-                self.translate_term(term)
-            }
-        }
-    }
-
     /// Implements the translation of an Alethe `Assume`, taking into
     /// account technical differences in the way Alethe rules are
     /// expressed within Eunoia.
@@ -677,7 +665,7 @@ impl EunoiaTranslator {
         clause: &[Rc<Term>],
         rule: &str,
         premises: &[Rc<ProofNode>],
-        args: &[ProofArg],
+        args: &[Rc<Term>],
         discharge: &[Rc<ProofNode>],
     ) {
         let mut alethe_premises: Vec<EunoiaTerm> = Vec::new();
@@ -711,7 +699,7 @@ impl EunoiaTranslator {
         let mut eunoia_arguments: Vec<EunoiaTerm> = Vec::new();
 
         args.iter().for_each(|arg| {
-            eunoia_arguments.push(self.translate_proof_arg(arg));
+            eunoia_arguments.push(self.translate_term(arg));
         });
 
         // TODO: develop some generic programmatic way to deal with each rule's
@@ -877,7 +865,9 @@ impl EunoiaTranslator {
 
     // TODO: make eunoia_prelude an attribute of EunoiaTranslator
     /// Translates only an SMT-lib problem prelude.
-    pub fn translate_problem_prelude(&self, prelude: &ProblemPrelude) -> EunoiaProof {
+    pub fn translate_problem_prelude(&self, problem: &Problem) -> EunoiaProof {
+        let Problem { prelude, .. } = problem;
+
         let ProblemPrelude {
             sort_declarations,
             function_declarations,
