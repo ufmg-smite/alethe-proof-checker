@@ -326,7 +326,7 @@ mod tests {
         let mut printer = EunoiaPrinter::new(s_exp_formatter);
 
         let assumes = vec![EunoiaCommand::Step {
-            name: String::from("t1"),
+            id: String::from("t1"),
             conclusion_clause: Some(EunoiaTerm::Id("some_conclusion".to_owned())),
             rule: "let_elim".to_owned(),
             premises: EunoiaList {
@@ -356,7 +356,7 @@ mod tests {
         let mut printer = EunoiaPrinter::new(s_exp_formatter);
 
         let assumes = vec![EunoiaCommand::StepPop {
-            name: String::from("t1"),
+            id: String::from("t1"),
             conclusion_clause: Some(EunoiaTerm::Id("some_conclusion".to_owned())),
             rule: "let_elim".to_owned(),
             premises: EunoiaList {

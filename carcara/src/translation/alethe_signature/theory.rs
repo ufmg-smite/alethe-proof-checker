@@ -138,6 +138,21 @@ impl AletheTheory {
             }
         }
     }
+
+    pub fn extract_cl_disjuncts(&self, conclusion: &EunoiaTerm) -> Vec<EunoiaTerm> {
+        match conclusion {
+            // @cl
+            EunoiaTerm::App(cl, disjuncts) => {
+                assert!(*cl == self.cl);
+                disjuncts.clone()
+            }
+
+            _ => {
+                println!("Actual term: {:?}", conclusion);
+                panic!()
+            }
+        }
+    }
 }
 
 impl Default for AletheTheory {

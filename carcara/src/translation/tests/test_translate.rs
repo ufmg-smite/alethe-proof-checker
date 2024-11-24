@@ -79,8 +79,8 @@ fn test_small_example() {
     // TODO: maybe we do not need to have a context created if we do not
     // have an anchor statement previously
     assert_eq!(
-        "(define ctx0 ( ) true)\n\
-         (assume context ctx0)\n\
+        "(define ctx1 ( ) true)\n\
+         (assume context ctx1)\n\
          (assume h1 (xor (not (> a 5.0)) (= b 10.0)))\n\
          (step t1 (@cl (not (> a 5.0)) (= b 10.0)) :rule xor1 :premises ( h1 ))\n\
          (step t2 (@cl (<= a 5.0) (> a 5.0)) :rule la_generic :args ( 1.0 1.0 ))\n\
@@ -138,11 +138,11 @@ fn test_let_example() {
     printer_proof.write_proof(eunoia_proof).unwrap();
 
     assert_eq!(
-        "(define ctx0 ( ) true)\n\
-         (assume context ctx0)\n\
+        "(define ctx1 ( ) true)\n\
+         (assume context ctx1)\n\
          (assume h1 (= a b))\n\
-         (define ctx1 ( ) (@ctx ( ( x S ) ) (and (= x b) ctx0)))\n\
-         (assume-push context ctx1)\n\
+         (define ctx2 ( ) (@ctx ( ( x S ) ) (and (= x b) ctx1)))\n\
+         (assume-push context ctx2)\n\
          (step t1 (@cl (= (@var ( ( x S ) ) x) b)) \
          :rule refl :args ( context (@var ( ( x S ) ) x) b ))\n\
          (step-pop t2 (@cl (= (@let ( ( x S ) ) (@var ( ( x S ) ) x)) b)) \

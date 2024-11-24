@@ -131,7 +131,6 @@ pub enum EunoiaDefineAttr {
 
 // // TODO: "Alethe in Eunoia" does not use 'declare-type', only 'declare-sort'.
 // pub struct EunoiaDeclareSort {
-
 // }
 
 // TODO: see if we actually have this, rather than only "declare-const" and the
@@ -230,17 +229,6 @@ pub enum EunoiaOperator {
     LessEq,
 }
 
-// /// A single 'declare-rule', with ':ethos' as its keyword.
-// pub struct EunoiaDeclareRuleEthos{
-//     pub symbol,
-//     pub typed_params,
-//     pub assumptions: Vec<Rc<EunoiaTerm>>,
-//     pub premises,
-//     pub arguments,
-//     pub reqs,
-//     pub conclusion_term,
-//     pub conclusion_attrs,
-// }
 #[derive(Debug, PartialEq)]
 pub enum EunoiaCommand {
     // Eunoia commands
@@ -289,7 +277,7 @@ pub enum EunoiaCommand {
     /// Proof step:
     /// (step <symbol> <term>? :rule <symbol> <premises>? <arguments>?)
     Step {
-        name: Symbol,
+        id: Symbol,
         conclusion_clause: Option<EunoiaTerm>,
         rule: Symbol,
         premises: EunoiaList<EunoiaTerm>,
@@ -299,7 +287,7 @@ pub enum EunoiaCommand {
     /// Step that might consume a local assumption, previously introduced by
     /// 'assume-push'.
     StepPop {
-        name: Symbol,
+        id: Symbol,
         conclusion_clause: Option<EunoiaTerm>,
         rule: Symbol,
         premises: EunoiaList<EunoiaTerm>,
@@ -342,6 +330,23 @@ pub enum EunoiaCommand {
     SetLogic {
         name: Symbol,
     },
+}
+
+impl EunoiaCommand {
+    /// Returns the value of the Id field, of self, assuming that it is
+    /// a `Step` or a `StepPop` command.
+    pub fn get_step_id(&self) -> Symbol {
+        match self {
+            EunoiaCommand::Step { id, .. } => id.clone(),
+
+            EunoiaCommand::StepPop { id, .. } => id.clone(),
+
+            _ => {
+                println!("EunoiaCommand must be a Step or StepPop command.");
+                panic!()
+            }
+        }
+    }
 }
 
 /// A collection of proof rules.

@@ -94,11 +94,10 @@
 )
 
 ;TRUST
-(declare-rule contraction ((CL1 Bool) (CL Bool))
+(declare-rule contraction ((CL1 Bool))
   :premises (CL1)
-  :args (CL)
-  :requires (((check_contraction CL1 CL) true))
-  :conclusion CL
+  :requires (((check_contraction CL1 eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -110,11 +109,11 @@
 )
 
 ;TODO: test if the list here works well
-(declare-rule subproof ((F Bool) (G Bool :list))
+(declare-rule subproof ((F Bool) (G Bool))
   ; TODO: why is it an assumption?
   :assumption F ;has no cl!
   :premises (G)
-  :requires (((check_subproof (not F) G eo::conclusion) true))
+  ;; :requires (((check_subproof (not F) G eo::conclusion) true))
   :conclusion-given
 )
 
@@ -315,11 +314,10 @@
 ;TODO: implement mkTrans
 (declare-rule trans ((Eqs Bool))
   :premise-list Eqs and
-  ;; :args ((@cl (make_trans Eqs)))
   ; TODO: is this correct?
   ;; (((check_cong Eqs eo::conclusion) true))
-  :requires (((@cl (make_trans Eqs)) eo::conclusion))
-  ;; :conclusion (@cl (make_trans Eqs))
+  ; TODO: add remaining cases in make_trans
+  ;; :requires (((@cl (make_trans Eqs)) eo::conclusion))
   :conclusion-given
 )
 
@@ -666,18 +664,18 @@
 )
 
 ;TODO
-(program check_and_pos ((CL Bool))
-  (Bool) Bool
+(program check_and_pos ((Pos Int) (Conclusion Bool))
+  (Int Bool) Bool
   (
-   ((check_and_pos CL) true)
+   ((check_and_pos Pos Conclusion) true)
   )
 )
 
 ;TRUST
-(declare-rule and_pos ((CL Bool))
-  :args (CL)
-  :requires (((check_and_pos CL) true))
-  :conclusion CL
+(declare-rule and_pos ((Pos Int))
+  :args (Pos)
+  :requires (((check_and_pos Pos eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -835,10 +833,9 @@
 )
 
 ;TRUST
-(declare-rule equiv_pos1 ((CL Bool))
-  :args (CL)
-  :requires (((check_equiv_pos1 CL) true))
-  :conclusion CL
+(declare-rule equiv_pos1 ()
+  :requires (((check_equiv_pos1 eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO

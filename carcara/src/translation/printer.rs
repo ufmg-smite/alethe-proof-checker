@@ -162,7 +162,7 @@ impl<'a> PrintProof for EunoiaPrinter<'a> {
                 }
 
                 EunoiaCommand::Step {
-                    name,
+                    id,
                     conclusion_clause,
                     rule,
                     premises,
@@ -172,7 +172,7 @@ impl<'a> PrintProof for EunoiaPrinter<'a> {
 
                     args = Vec::new();
 
-                    args.push(name.clone());
+                    args.push(id.clone());
 
                     if let Some(term) = conclusion_clause {
                         args.push(EunoiaPrinter::term_to_concrete_syntax(term));
@@ -201,7 +201,7 @@ impl<'a> PrintProof for EunoiaPrinter<'a> {
                 }
 
                 EunoiaCommand::StepPop {
-                    name,
+                    id,
                     conclusion_clause,
                     rule,
                     premises,
@@ -211,7 +211,7 @@ impl<'a> PrintProof for EunoiaPrinter<'a> {
 
                     args = Vec::new();
 
-                    args.push(name.clone());
+                    args.push(id.clone());
 
                     if let Some(term) = conclusion_clause {
                         args.push(EunoiaPrinter::term_to_concrete_syntax(term));
