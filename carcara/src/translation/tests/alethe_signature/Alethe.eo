@@ -109,11 +109,11 @@
 )
 
 ;TODO: test if the list here works well
-(declare-rule subproof ((F Bool) (G Bool))
+(declare-rule subproof ((F Int) (G Bool))
   ; TODO: why is it an assumption?
   :assumption F ;has no cl!
   :premises (G)
-  ;; :requires (((check_subproof (not F) G eo::conclusion) true))
+  :requires (((check_subproof (not F) G eo::conclusion) true))
   :conclusion-given
 )
 
@@ -135,7 +135,7 @@
 ;       be wrapped in a single function call using an n-ary function.  See
 ;       the example `small.smt3`.
 ;TRUST
-(declare-rule la_generic ((coeffs Real))
+(declare-rule la_generic ((coeffs Real :list))
   :args (coeffs)
   :requires (((check_la_generic coeffs eo::conclusion) true))
   :conclusion-given
@@ -181,6 +181,20 @@
   :conclusion CL
 )
 
+;TODO
+(program check_la_mult_neg ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_la_mult_neg CL) true)
+  )
+)
+
+;TRUST
+(declare-rule la_mult_neg ()
+  :requires (((check_la_mult_neg eo::conclusion) true))
+  :conclusion-given
+)
+
 ; NOTE: Rules like `bind` can have multiple forms: without and with
 ; @var.  In the first case the bind rule is
 ;                @var xs. φ = @var ys. φ'
@@ -212,7 +226,7 @@
   :assumption ctx
   ;:premises (old_ctx (@cl (= l1 r1))) ; this is never a direct assumption
   ;; :premises (old_ctx) ; TODO: fix this
-  ;; :requires (((context_extended ctx old_ctx) true) ((check_bind ctx l r l1 r1) true))
+  ;; :requires (((context_extended cztx old_ctx) true) ((check_bind ctx l r l1 r1) true))
   ;; :requires (((context_extended ctx old_ctx) true) 
   ;;            ;; ((check_bind ctx l r l1 r1) true)
   ;;            )
@@ -455,23 +469,23 @@
 )
 
 ;TODO implement transform_not_and
-(program check_not_and ((C Bool) (CN Bool :list) (refCL Bool))
+;; (program check_not_and ((C Bool) (CN Bool :list) (refCL Bool))
+(program check_not_and ((ClNotAnd Bool) (CL Bool))
   (Bool Bool) Bool
-  (
-   ((check_not_and (@cl (not (and C CN))) refCL)
-     (clEqual (transform_not_and (and C CN)) refCL)
-   )
-   ((check_not_and (not (and C CN)) refCL)
-     (clEqual (transform_not_and (and C CN)) refCL)
-   )
+  (((check_not_and ClNotAnd CL) true)
+   ;; ((check_not_and (@cl (not (and C CN))) refCL)
+   ;;   (clEqual (transform_not_and (and C CN)) refCL)
+   ;; )
+   ;; ((check_not_and (not (and C CN)) refCL)
+   ;;   (clEqual (transform_not_and (and C CN)) refCL)
+   ;; )
   )
 )
 
-(declare-rule not_and ((refCL Bool) (CL Bool))
-  :premises (CL)
-  :args (refCL)
-  :requires (((check_not_and CL refCL) true))
-  :conclusion refCL
+(declare-rule not_and ((ClNotAnd Bool))
+  :premises (ClNotAnd)
+  :requires (((check_not_and ClNotAnd eo::conclusion) true))
+  :conclusion-given
 )
 
 (program check_xor1 ((phi1 Bool) (phi2 Bool) (refCL Bool))
@@ -1071,18 +1085,17 @@
 )
 
 ;TODO
-(program check_implies_simplify ((l Bool) (r Bool))
-  (Bool Bool) Bool
+(program check_implies_simplify ((CL Bool))
+  (Bool) Bool
   (
-   ((check_implies_simplify l r) true)
+   ((check_implies_simplify CL) true)
   )
 )
 
 ;TRUST
-(declare-rule implies_simplify ((l Bool) (r Bool))
-  :args ((@cl (= l r)))
-  :requires (((check_implies_simplify l r) true))
-  :conclusion (@cl (= l r))
+(declare-rule implies_simplify ()
+  :requires (((check_implies_simplify eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
@@ -1437,3 +1450,39 @@
   :conclusion-given
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Rare
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;TODO
+(program check_rare_rewrite ((Flag Bool) (CL Bool))
+  (Bool Bool) Bool
+  (
+   ((check_rare_rewrite Flag CL) true)
+  )
+)
+
+;TRUST
+(declare-rule rare_rewrite ((flag Bool))
+  :args (flag)
+  :requires (((check_rare_rewrite flag eo::conclusion) true))
+  :conclusion-given
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Misc.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(program check_discard_context ((CL Bool))
+  (Bool) Bool
+  (
+   ((check_discard_context CL) true)
+  )
+)
+
+; TODO: dummy step-pop step, to discard contexts
+(declare-rule discard_context ((ctx Bool))
+  :assumption ctx
+  ;; :requires (((check_discard_context eo::conclusion) true))
+  :conclusion-given
+)
