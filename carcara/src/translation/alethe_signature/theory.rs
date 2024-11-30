@@ -17,6 +17,13 @@ pub struct AletheTheory {
     pub not: Symbol,
     pub or: Symbol,
 
+    // Arithmetic
+    pub add: Symbol,
+    pub sub: Symbol,
+    pub mult: Symbol,
+    pub int_div: Symbol,
+    pub real_div: Symbol,
+
     // Comparison.
     pub eq: Symbol,
     pub lt: Symbol,
@@ -32,6 +39,8 @@ pub struct AletheTheory {
     pub refl: Symbol,
     pub subproof: Symbol,
     pub forall_inst: Symbol,
+    pub la_generic: Symbol,
+    pub discard_context: Symbol,
 
     // Context representation and manipulation.
     // To bind variables in a context.
@@ -58,6 +67,13 @@ impl AletheTheory {
             or: String::from("or"),
             not: String::from("not"),
 
+            // Arithemtic
+            add: String::from("+"),
+            sub: String::from("-"),
+            mult: String::from("*"),
+            int_div: String::from("div"),
+            real_div: String::from("/"),
+
             // Comparison.
             eq: String::from("="),
             lt: String::from("<"),
@@ -72,6 +88,8 @@ impl AletheTheory {
             subproof: String::from("subproof"),
             forall_inst: String::from("forall_inst"),
             bind: String::from("bind"),
+            la_generic: String::from("la_generic"),
+            discard_context: String::from("discard_context"),
 
             // Context representation and manipulation.
             var: String::from("@var"),
