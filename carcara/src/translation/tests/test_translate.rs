@@ -84,7 +84,7 @@ fn test_small_example() {
          (assume context ctx1)\n\
          (assume h1 (xor (not (> a 5.0)) (= b 10.0)))\n\
          (step t1 (@cl (not (> a 5.0)) (= b 10.0)) :rule xor1 :premises ( h1 ))\n\
-         (step t2 (@cl (<= a 5.0) (> a 5.0)) :rule la_generic :args ( 1.0 1.0 ))\n\
+         (step t2 (@cl (<= a 5.0) (> a 5.0)) :rule la_generic :args ( (+ 1.0 1.0) ))\n\
          (assume h2 (not (= b 10.0)))\n\
          (assume h3 (not (<= a 5.0)))\n\
          (step t3 @empty_cl :rule resolution :premises ( t1 t2 h2 h3 ))\n",
@@ -146,9 +146,10 @@ fn test_let_example() {
          (assume-push context ctx2)\n\
          (step t1 (@cl (= (@var ( ( x S ) ) x) b)) \
          :rule refl :args ( context (@var ( ( x S ) ) x) b ))\n\
-         (step-pop t2 (@cl (= (@let ( ( x S ) ) (@var ( ( x S ) ) x)) b)) \
+         (step t2 (@cl (= (@let ( ( x S ) ) (@var ( ( x S ) ) x)) b)) \
          :rule let_elim :premises ( h1 t1 ) \
-         :args ( context (@let ( ( x S ) ) (@var ( ( x S ) ) x)) b ))\n",
+         :args ( context (@let ( ( x S ) ) (@var ( ( x S ) ) x)) b ))\n\
+         (step-pop t2 @empty_cl :rule discard_context)\n",
         std::str::from_utf8(&buf_proof).unwrap()
     );
 }
