@@ -4,7 +4,7 @@
 # contained in $DIR.
 DIR="./problems/"
 COMMAND="cvc5 --dump-proofs --proof-format-mode=alethe --proof-elim-subtypes"
-CARCARA_COMMAND="../../../../target/release/carcara check"
+CARCARA_COMMAND="../../../../target/release/carcara check --expand-let-bindings --allow-int-real-subtyping --ignore-unknown-rules"
 
 # Loop through each file in the directory.
 for FILE in "$DIR"/*; do
