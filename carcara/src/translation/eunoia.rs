@@ -288,7 +288,7 @@ impl EunoiaTranslator {
                             {
                                 self.eunoia_proof.push(EunoiaCommand::StepPop {
                                     // TODO: change id
-                                    id: id.to_owned(),
+                                    id: id.clone(),
                                     conclusion_clause: Some(EunoiaTerm::Id(
                                         self.alethe_signature.empty_cl.clone(),
                                     )),
