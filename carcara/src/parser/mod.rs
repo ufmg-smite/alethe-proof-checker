@@ -474,6 +474,14 @@ impl<'a, R: BufRead> Parser<'a, R> {
                 SortError::assert_all_eq(&sorts)?;
             }
             Operator::RareList => SortError::assert_all_eq(&sorts)?,
+            Operator::Cl => {
+                // SortError::assert_eq(&Sort::Bool, sorts[0])?;
+                // assert_num_args(&args, 1)?;
+            }
+            Operator::Delete => {
+                // SortError::assert_eq(&Sort::Bool, sorts[0])?;
+                // assert_num_args(&args, 1)?;
+            }
         }
         Ok(self.pool.add(Term::Op(op, args)))
     }
@@ -1586,6 +1594,11 @@ impl<'a, R: BufRead> Parser<'a, R> {
                     Reserved::Lambda => self.parse_binder(Binder::Lambda),
                     Reserved::Bang => self.parse_annotated_term(),
                     Reserved::Let => self.parse_let_term(),
+                    Reserved::Cl => {
+                        let args = self.parse_sequence(Self::parse_term, false)?;
+                        self.make_op(Operator::Cl, args)
+                            .map_err(|err| Error::Parser(err, head_pos))
+                    }
                     _ => Err(Error::Parser(
                         ParserError::UnexpectedToken(Token::ReservedWord(reserved)),
                         head_pos,
@@ -1599,7 +1612,9 @@ impl<'a, R: BufRead> Parser<'a, R> {
             // However, `if let` guards are still nightly only. For more info, see:
             // https://github.com/rust-lang/rust/issues/51114
             Token::Symbol(s) if Operator::from_str(s).is_ok() => {
+
                 let operator = Operator::from_str(s).unwrap();
+
                 self.next_token()?;
                 let args = self.parse_sequence(Self::parse_term, true)?;
                 self.make_op(operator, args)

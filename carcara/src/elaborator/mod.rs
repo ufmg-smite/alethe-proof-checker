@@ -4,6 +4,7 @@ mod polyeq;
 mod reflexivity;
 mod reordering;
 mod resolution;
+mod drup;
 mod transitivity;
 mod uncrowding;
 
@@ -160,6 +161,7 @@ impl<'e> Elaborator<'e> {
                 "eq_transitive" => transitivity::eq_transitive,
                 "trans" => transitivity::trans,
                 "resolution" | "th_resolution" => resolution::resolution,
+                "drup" => drup::elaborate_drup,
                 _ => return None,
             })
         }

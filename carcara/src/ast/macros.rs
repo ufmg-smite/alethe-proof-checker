@@ -172,6 +172,8 @@ macro_rules! match_term {
     (@GET_VARIANT bbterm)   => { $crate::ast::Operator::BvBbTerm };
     (@GET_VARIANT bvult)    => { $crate::ast::Operator::BvULt };
     (@GET_VARIANT bvadd)    => { $crate::ast::Operator::BvAdd };
+    (@GET_VARIANT cl)    => { $crate::ast::Operator::Cl };
+    (@GET_VARIANT delete)    => { $crate::ast::Operator::Delete };
 
     (@GET_VARIANT extract)     => { $crate::ast::ParamOperator::BvExtract };
     (@GET_VARIANT bit_of)      => { $crate::ast::ParamOperator::BvBitOf };
