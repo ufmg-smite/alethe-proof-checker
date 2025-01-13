@@ -28,6 +28,7 @@
     ((check_false (@cl (not false))) true)
     )
 )
+
 (declare-rule false ()
   :requires (((check_false eo::conclusion) true))
   :conclusion-given
@@ -135,7 +136,7 @@
 ;       be wrapped in a single function call using an n-ary function.  See
 ;       the example `small.smt3`.
 ;TRUST
-(declare-rule la_generic ((coeffs Real :list))
+(declare-rule la_generic ((coeffs Real))
   :args (coeffs)
   :requires (((check_la_generic coeffs eo::conclusion) true))
   :conclusion-given
@@ -417,29 +418,72 @@
   :conclusion (@cl (or (not (forall xs phi)) (forall xsP phiP)))
 )
 
-; TODO: this overloads PandP
-;TRUST
-(declare-rule and ((CL Bool) (phi Bool) (index Int))
-  :premises (CL)
-  :args (index)
-  :requires (((contains (from_cl CL) eo::conclusion) true))
-  :conclusion-given
-)
-
-;TODO
-(program check_not_or ((ors Bool) (phi Bool))
-  (Bool Bool) Bool
-  (
-   ((check_not_or (@cl (not ors)) phi) (contains ors phi))
+; program: check_and
+; args:
+; - premise Bool       : >
+;   Premise of the "and" rule: a conjunction of terms. 
+;   It could be embedded within a single-term clause 
+;   (built with @cl).
+; - index Int          : Conjunct index, as provided to the rule.
+; - conclusion Bool    : >
+;   Conclusion provided to the rule. Should be a conjunct from 
+;   "premise", with index "index", for the conclusion to check. 
+; return: >
+;   A boolean indicating if "conclusion" satisfies the previous property.
+(program check_and ((premise Bool) (premise_non_cl Bool) (index Int) (conclusion Bool))
+  (Bool Int Bool) Bool
+  (((check_and premise index conclusion)
+    (eo::is_eq (to_cl (index_conjunction (from_cl premise) index))
+               conclusion))
   )
 )
 
+; TODO: this overloads PandP
+
+; rule: and
+; premises:
+; - premise: The conjunctions over which "and elimination" is applied.
+; args:
+; - index Int: The index of the conjunct being selected.
+; conclusion: The selected conjunct.
+(declare-rule and ((premise Bool) (index Int))
+  :premises (premise)
+  :args (index)
+  :requires (((check_and premise index eo::conclusion) true))
+  :conclusion-given
+)
+
+; program: check_not_or
+; args:
+; - premise Bool       : >
+;   Premise of the "not_or" rule: a negation of a disjunction of terms.
+;   It could be embedded within a single-term clause 
+;   (built with @cl).
+; - index Int          : Conjunct index, as provided to the rule.
+; - conclusion Bool    : >
+;   Conclusion provided to the rule. Should be a conjunct from 
+;   "premise", with index "index", for the conclusion to check. 
+; return: >
+;   A boolean indicating if "conclusion" satisfies the previous property.
+(program check_not_or ((disjuncts Bool) (premise_non_cl Bool) (index Int) (conclusion Bool))
+  (Bool Int Bool) Bool
+  (;; To facilitate the use of the program, we allow 
+   ;; the presence of a @cl constructor
+   ((check_not_or (@cl premise_non_cl) index conclusion)
+    (check_not_or premise_non_cl index conclusion))
+
+   ((check_not_or (not disjuncts) index conclusion)
+    (eo::is_eq (to_cl (not (index_disjunction disjuncts index)))
+               conclusion))
+   )
+)
+
 ;TRUST
-(declare-rule not_or ((CS Bool) (phi Bool))
-  :premises (CS)
-  :args ((@cl (not phi)))
-  :requires (((check_not_or (to_cl CS) phi) true))
-  :conclusion (@cl (not phi))
+(declare-rule not_or ((premise Bool) (index Int))
+  :premises (premise)
+  :args (index)
+  :requires (((check_not_or premise index eo::conclusion) true))
+  :conclusion-given
 )
 
 ;TODO
