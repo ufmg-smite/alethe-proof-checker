@@ -7,7 +7,12 @@
 ;; CLAUSES
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Removes the top @cl if any
+; program: from_cl
+; args:
+; - T Bool: A proposition.
+; return: >
+;   For a unit clause, built with @cl, removes the top @cl if 
+;   any, returning the only disjunct. Otherwise, returns T.
 (program from_cl ((T Bool))
     (Bool) Bool
     (
@@ -16,7 +21,12 @@
     )
 )
 
-; Add a @cl if there is none
+; program: to_cl
+; args:
+; - T Bool: A proposition.
+; return: >
+;   Embeds T within a unit clause built with @cl, only
+;   if T is not a unit clause built with @cl itself. 
 (program to_cl ((T Bool))
     (Bool) Bool
     (
@@ -25,7 +35,13 @@
     )
 )
 
+
 ;TODO
+; program: contains
+; args:
+; - inList Bool:
+; - phi Bool:
+; return:
 (program contains ((inList Bool) (phi Bool))
   (Bool Bool) Bool
   (
@@ -34,6 +50,11 @@
 )
 
 ;TODO true if CL2 is a permuation of CL1
+; program: clEqual
+; args:
+; - CL1 Bool:
+; - CL2 Bool:
+; return:
 (program clEqual ((CL1 Bool) (CL2 Bool))
   (Bool Bool) Bool
   (
@@ -42,35 +63,28 @@
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; CONJUNCTIONS
+;; List computations
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: could we define something more generic, to totally replace eo::list_nth?
-; define: index_conjunction
+; define: index_list
 ; args:
-; - conjunction Bool: A conjunction of terms to be indexed, built with "and".
+; - cons (-> A A A): >
+;   Right/left assoc. operator used to construct the given cons-list
+;   (see definition of f-list, for a given operator f, in ethos
+;   manual: https://github.com/cvc5/ethos/blob/main/user_manual.md#list-computations)
+; - list (A): A cons-list: a term of the form (cons t1 ... tn)
 ; - index Int: >
-;   An integer, from 0 to the number of conjunctions - 1 in "conjunction".
-; return: The conjunct number "index".
-(program index_conjunction ((conjunction Bool) (index Int))
-  (Bool Int) Bool
+;   An integer, from 0 to the number of parameters - 1 in (cons t1 ... tn) 
+;   (i.e., "list)
+; return: The parameter number "index" - 1, from (cons t1 ... tn) (i.e., "list")
+(program index_list ((A Type) (cons (-> A A A)) (hd A) (tail (-> A A)) (index Int))
+  ((-> A A A) A Int) A
   (
-   ((index_conjunction conjunction index)       
-    (eo::list_nth and conjunction index))
-  )
-)
+   ((index_list cons (cons hd tail) 0) hd)
 
-; TODO: see if we can pass the proposition constructor as an argument
-; define: index_disjunction
-; args:
-; - disjunction Bool: A disjunction of terms to be indexed, built with "and".
-; - index Int: >
-;   An integer, from 0 to the number of disjunctions - 1 in "disjunction".
-; return: The conjunct number "index".
-(program index_disjunction ((disjunction Bool) (index Int))
-  (Bool Int) Bool
-  (
-   ((index_disjunction disjunction index)       
-    (eo::list_nth or disjunction index))
+   ;; { index > 0 }
+   ((index_list cons (cons hd tail) index)
+    ;; TODO: using eo::add
+    (index_list cons tail (eo::add index -1)))
   )
 )

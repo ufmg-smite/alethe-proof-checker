@@ -418,6 +418,14 @@
   :conclusion (@cl (or (not (forall xs phi)) (forall xsP phiP)))
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Table 7: Clausification rules
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;
+;; Rule 30: and
+;;;;;;;;;;;;;;;;;;
+
 ; program: check_and
 ; args:
 ; - premise Bool       : >
@@ -433,13 +441,12 @@
 (program check_and ((premise Bool) (premise_non_cl Bool) (index Int) (conclusion Bool))
   (Bool Int Bool) Bool
   (((check_and premise index conclusion)
-    (eo::is_eq (to_cl (index_conjunction (from_cl premise) index))
+    (eo::is_eq (to_cl (index_list and (from_cl premise) index))
                conclusion))
   )
 )
 
 ; TODO: this overloads PandP
-
 ; rule: and
 ; premises:
 ; - premise: The conjunctions over which "and elimination" is applied.
@@ -452,6 +459,10 @@
   :requires (((check_and premise index eo::conclusion) true))
   :conclusion-given
 )
+
+;;;;;;;;;;;;;;;;;;
+; Rule 31: or
+;;;;;;;;;;;;;;;;;;
 
 ; program: check_not_or
 ; args:
@@ -473,12 +484,17 @@
     (check_not_or premise_non_cl index conclusion))
 
    ((check_not_or (not disjuncts) index conclusion)
-    (eo::is_eq (to_cl (not (index_disjunction disjuncts index)))
+    (eo::is_eq (to_cl (not (index_list or disjuncts index)))
                conclusion))
    )
 )
 
-;TRUST
+; rule: not_or
+; premises:
+; - premise: The negated disjunction over which "not_or" is applied.
+; args:
+; - index Int: The index of the conjunct being selected.
+; conclusion: The selected conjunct.
 (declare-rule not_or ((premise Bool) (index Int))
   :premises (premise)
   :args (index)
@@ -486,49 +502,95 @@
   :conclusion-given
 )
 
-;TODO
-(program check_or ((ors Bool) (clause Bool))
+;;;;;;;;;;;;;;;;;;
+; Rule 32: or
+;;;;;;;;;;;;;;;;;;
+
+; program: convert_or_to_cl
+; args:
+; - or_clause Bool : >
+;   Clause to convert, built with the "or" operator.
+; - accum Bool : Partial result accumulator
+; return: >
+;   A clause equivalent to "or_clause", built exclusively with @cl.
+(program convert_or_to_cl ((or_clause Bool) (accum Bool) 
+                           (disjunct_1 Bool) (disjunct_2 Bool) 
+                           (disjunct_cl_1 Bool) (disjunct_cl_2 Bool))
+  (Bool) Bool
+  (((convert_or_to_cl (or disjunct_1 disjunct_2))
+    (@cl disjunct_1 (from_cl (convert_or_to_cl disjunct_2))))
+
+   ; { disjunct_1 is not built with "or" }
+   ((convert_or_to_cl disjunct_1)
+    (@cl disjunct_1))
+   )
+)
+
+; program: check_or
+; args:
+; - premise Bool: >
+;   Premise of the "or" rule: a disjunction of terms, built with "or" operator. 
+;   It could be embedded within a single-term clause built with @cl.
+; - conclusion Bool: >
+;   Conclusion provided to the rule. Should be exactly as "premise", but built 
+;   with @cl.
+; return: >
+;   A boolean indicating if "conclusion" satisfies the previous property.
+(program check_or ((premise Bool) (conclusion Bool))
   (Bool Bool) Bool
   (
-   ((check_or ors clause) true)
+   ((check_or premise conclusion) 
+    (eo::is_eq (convert_or_to_cl (from_cl premise)) conclusion))
   )
 )
 
-;TRUST
-(declare-rule or ((CS Bool) (CP Bool) (CNP Bool :list))
-  :premises (CS)
-  ;; :args ((@cl CP CNP))
-  :requires (((check_or (from_cl CS) eo::conclusion) true))
-  ;; :conclusion (@cl CP CNP)
+; rule: or
+; premises:
+; - premise: >
+;   The clause, built with the "or" operator, over which the rule is applied. 
+;   It could be embedded within a single-term clause built with @cl.
+; conclusion: A clause equivalent to "premise", but built with @cl.
+(declare-rule or ((premise Bool))
+  :premises (premise)
+  :requires (((check_or premise eo::conclusion) true))
   :conclusion-given 
 )
 
-;TODO: test this. It is likely wrong.
-(program transform_not_and ((l Bool) (ls Bool :list))
+;;;;;;;;;;;;;;;;;;
+; Rule 37: not_and
+;;;;;;;;;;;;;;;;;;
+
+; program: transform_not_and
+; args:
+; - ls Bool: A conjunction of terms.
+; return: >
+;   Applies De Morgan's law over the conjuncts of "ls", returning a new clause
+;   built with @cl.
+(program transform_not_and ((l Bool) (ls Bool))
   (Bool) Bool
   (
-   ((transform_not_and (and l ls)) (@cl (not l) (transform_not_and ls)))
-   ((transform_not_and true) false)
+   ((transform_not_and (and l ls))
+    (@cl (not l) (from_cl (transform_not_and ls))))
+
+   ((transform_not_and l) (@cl (not l)))
   )
 )
 
 ;TODO implement transform_not_and
 ;; (program check_not_and ((C Bool) (CN Bool :list) (refCL Bool))
-(program check_not_and ((ClNotAnd Bool) (CL Bool))
+(program check_not_and ((conjunction Bool) (conclusion Bool))
   (Bool Bool) Bool
-  (((check_not_and ClNotAnd CL) true)
-   ;; ((check_not_and (@cl (not (and C CN))) refCL)
-   ;;   (clEqual (transform_not_and (and C CN)) refCL)
-   ;; )
-   ;; ((check_not_and (not (and C CN)) refCL)
-   ;;   (clEqual (transform_not_and (and C CN)) refCL)
-   ;; )
+  (((check_not_and (not conjunction) conclusion)
+    ;; TODO: use clEqual!
+     (transform_not_and conjunction)
+     ;; (eo::is_eq (transform_not_and conjunction) conclusion)
+     )
   )
 )
 
-(declare-rule not_and ((ClNotAnd Bool))
-  :premises (ClNotAnd)
-  :requires (((check_not_and ClNotAnd eo::conclusion) true))
+(declare-rule not_and ((premise Bool))
+  :premises (premise)
+  :requires (((check_not_and (from_cl premise) eo::conclusion) eo::conclusion))
   :conclusion-given
 )
 
